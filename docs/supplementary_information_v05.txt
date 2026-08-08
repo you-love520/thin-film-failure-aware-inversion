@@ -1,0 +1,195 @@
+﻿SUPPLEMENTARY INFORMATION
+
+Failure-Mechanism-Aware Robust Profiling with Selective Structured-Residual Refinement for Thin-Film Thickness Inversion
+
+This Supplementary Information documents numerical implementation details, complete simulation settings, sensitivity analyses, failure accounting, and provenance that are intentionally condensed in the main manuscript. Internal provenance labels are confined to the final reproducibility section, where they connect the public scientific description to frozen computational artifacts.
+
+Supplementary Methods S1. Forward-model numerical details
+-----------------------------------
+The forward model is a coherent characteristic-matrix calculation for one homogeneous isotropic film on a semi-infinite substrate. The ambient index is 1. The wavelength grid is 420–780 nm inclusive with 361 equally spaced samples (1 nm spacing), and the nominal incidence angle is 8 degrees. Unpolarized reflectance is the arithmetic mean of the s- and p-polarized intensity reflectances.
+
+For a complex refractive index n_j, the transmitted-angle cosine is evaluated from
+
+    sin(theta_j) = n_0 sin(theta_0) / n_j,
+    cos(theta_j) = sqrt(1 - sin(theta_j)^2 + 0j).
+
+The square-root branch is flipped when Re(cos(theta_j)) < 0, or when Re(cos(theta_j)) is numerically zero and Im(cos(theta_j)) < 0. This implements the forward/passive branch convention used by the frozen optics code. Optical admittances are eta_s=n cos(theta) and eta_p=n/cos(theta).
+
+Material A uses the analytic fused-silica and N-BK7 Sellmeier relations listed in the main references. Material B uses frozen SiO2 and Si n,k tables. Material C uses frozen SiO2-buffer and soda-lime-glass tables converted from epsilon1,epsilon2 through
+
+    rho = sqrt(epsilon1^2 + epsilon2^2),
+    n = sqrt((rho + epsilon1)/2),
+    k = sqrt((rho - epsilon1)/2), k>=0.
+
+Tabulated optical constants are used only inside their frozen wavelength support; no extrapolation is permitted by the material adapter. After reflectance calculation, Gaussian spectral blur is applied with sigma=0.6 nm. With the 1 nm wavelength grid, the code passes sigma=0.6 samples to scipy.ndimage.gaussian_filter1d and uses mode="nearest" at the wavelength boundaries. Table S1 records the material provenance.
+
+Supplementary Methods S2. E0/E1/E3 implementation details
+------------------------------------
+The shared nuisance design at a trial thickness d is [f(d), B2], where B2 contains Legendre P0,P1,P2 on the normalized wavelength coordinate. Gain is bounded to [0,2]; the three baseline coefficients are unbounded.
+
+Observation-level robust scale. A preliminary complete constrained-L2 thickness profile is solved first. At that preliminary thickness, the full gain+baseline design is refitted by bounded L2 and the residual scale is
+
+    s_MAD = 1.4826 median |r - median(r)|.
+
+If s_MAD is nonfinite or below 1e-6, the implementation uses centered RMS,
+
+    s_RMS = sqrt(mean((r-median(r))^2)),
+    s = max(s_RMS,1e-6).
+
+The selected-material/thickness observations did not require this degenerate-scale fallback. The resulting scale is fixed for the observation's E1/E3 comparisons; it is not re-estimated at every thickness.
+
+Robust IRLS. For Tukey c=4.685, the mathematical weight is [1-(u/c)^2]^2 for |u|<=c and zero otherwise. In the E3 weighted-L2 subproblem only, numerical weights are clipped to [1e-12,1] before taking square roots. The objective used for selection remains the exact Tukey rho sum, so the weight floor is a numerical linear-solve safeguard rather than a change to the reported objective.
+
+E3 candidate discovery. The repaired E3 implementation evaluates E3's own robust profile on the 5 nm grid, identifies every finite discrete local-minimum plateau, and chooses a deterministic representative for each plateau. A run is a local minimum if its representative is no greater than finite neighboring runs and is strictly lower than at least one neighbor, with boundary runs retained when appropriate. Overlapping refinement intervals are split at the midpoint of their representative grid locations. Each candidate is refined between immediate coarse-grid neighbors, and refined candidates within 1e-4 nm are deduplicated. No fixed top-k number of basins is imposed. Every retained refined thickness is validated with deterministic gain starts {0,0.5,1.0,1.5,2.0}; the lowest finite eligible successful robust objective is selected. If no eligible candidate succeeds, the lowest finite unique candidate is retained and marked failed instead of being deleted. The full frozen settings are in Table S2.
+
+Supplementary Methods S3. E4-HORP physical protection, derivatives, and residual tree
+---------------------------------------------------------------
+E4 starts from the E3 anchor (d3,g3,beta3,s3). First- and second-order finite differences use 0.25 nm nominal steps. For the first derivative, a centered difference is used when both sides lie inside the global thickness interval; a one-sided difference is used at a global boundary. For the second derivative, equal centered spacing uses the standard three-point second difference; clipped unequal spacing uses
+
+    f''(d) = 2[ f(left)/(h1(h1+h2)) - f(d)/(h1 h2) + f(right)/(h2(h1+h2)) ].
+
+If both sides of d are not available, the implementation returns a zero second-derivative vector and second-order protection is inactive for that observation.
+
+The raw residual tree has depth 2. Level l contains 2^l wavelength nodes. Each node uses a smooth local window and three atoms: local constant, local linear, and centered local quadratic. The local coordinate is xi=(x-center)/halfwidth clipped to [-1,1], and the quadratic atom subtracts its window-weighted mean xi^2. After first- and partial second-order physical projection, columns with weighted norm below 1e-10 are removed and surviving columns are scaled to weighted unit norm.
+
+Let T1=[f(d3),B2,g3 f'(d3)]. The raw residual dictionary is weighted-residualized against T1. The residualized second-order direction h2_perp is then used for partial projection with eta2=0.5. The effective rank is computed from singular values of W^(1/2)S_phys using a relative tolerance of 1e-10; the corresponding weighted condition number is stored. The first-order projection QC is
+
+    Q1 = ||T1^T W S_phys||_F /
+         (||W^(1/2)T1||_F ||W^(1/2)S_phys||_F + eps).
+
+For the fitted residual-tree correction b=S_phys gamma, the second-order leakage diagnostic is
+
+    L2 = (h2_perp^T W b)^2 /
+         [(h2_perp^T W h2_perp)(b^T W b)+eps].
+
+The tree graph penalty contains one level-weighted diagonal penalty row per retained atom and an additional parent-child same-basis difference row whenever the parent atom survives projection. Level weights are [1,1.5,2.25]. Complete E4 settings are in Table S3.
+
+Supplementary Methods S4. Development-v1 safety gate and final operational replay
+------------------------------------------------------------
+Candidate generation used the frozen trigger
+
+    G_B >= 0.002,
+    A_B <= 1,
+    R_I >= 0.5,
+    L2 <= 0.25,
+    Q1 <= 1e-8.
+
+The original development-v1 acceptance gate then required a finite candidate strictly inside the trust region, successful inner convergence, candidate gain in [0,2], objective relative improvement >=5e-4, R_I>=0.5, L2<=0.25, and nonnegative four-window consensus.
+
+For four overlapping wavelength windows, local Tukey data-fit losses J3,k and J4,k were computed from the fixed E3 and candidate predictions. Window improvement was
+
+    Delta_k=(J3,k-J4,k)/max(|J3,k|,eps),
+
+and the recorded consensus statistics were median(Delta_k) and MAD(Delta_k). The windows used 25% overlap. These diagnostics belong to development-v1 and are not additional predicates in the final V2 replay.
+
+The operational V2 replay that exactly reproduces the frozen development and independent-seed counts is
+
+    V2_eligible = triggered AND inner_converged AND G_A>=1e-4,
+
+where G_A=(J_anchor-J_candidate)/max(|J_anchor|,eps). The replay acts on already generated candidates; it does not rerun the optimizer.
+
+Fine-q75. For retained residual-tree level l, let b_l denote the fitted correction contributed by that level after physical projection and scaling. The audited fine-scale index is
+
+    A_total = ||W_3^(1/2) sum_l b_l||_2^2,
+    A_fine  = sum_{l in L_fine} ||W_3^(1/2)b_l||_2^2,
+    I_fine  = A_fine/(A_total+1e-12),
+
+where L_fine is the deepest one or two retained levels (levels[-2:] when two or more levels survive; otherwise the deepest surviving level). Because level contributions are not treated as an orthogonal energy decomposition, I_fine is not bounded by one. The development q75 among triggered and inner-converged candidates was 435.96252114890945. The final rule is
+
+    Fine_q75_eligible = V2_eligible AND I_fine<=435.96252114890945.
+
+Table S6 and Figure S4 report the development sensitivity. The independent-seed validation outcomes are in Table S7.
+
+Supplementary Methods S5. Simulation generator, RNG, and observation audit
+----------------------------------------------------
+For wavelength index j,
+
+    y_j = G R_j(d_true,M) + O + B_j + N_j + I_j.
+
+Here G=1+Normal(0,gain_sd), O=Normal(0,offset_sd), and N_j are iid Normal(0,gaussian_sd). No clipping, renormalization, or post-generation correction is applied.
+
+With x mapping wavelength to [-1,1], smooth drift is generated as
+
+    raw(x)=c0+c1 x+c2 x^2+c3 sin(1.35 pi x+phi),
+    c ~ Normal([0.15,0.55,0.30,0.18],[0.05,0.08,0.08,0.04]),
+    phi ~ Uniform(-0.5,0.5).
+
+After removing the mean, raw is divided by max(max|raw|,1e-12) and multiplied by the registered baseline amplitude. The drift is therefore intentionally not exactly contained in the fitted quadratic Legendre nuisance space.
+
+The impulsive count is round(outlier_ratio*361). Positions are sampled uniformly without replacement, signs are independent equiprobable +/-1, and absolute magnitudes equal nominal_outlier_magnitude*Uniform(0.75,1.25). This yields 14 outliers in the impulsive condition and 22 in mixed contamination.
+
+For the selected-material/thickness study, master_seed=20260726 and
+
+    scenario_id = 280000 + 1000*material_index + 100*thickness_index + scenario_index,
+    SeedSequence entropy=[master_seed,scenario_id,trial_id],
+    trial_id=0,...,199,
+    bit generator=PCG64.
+
+All E0/E1/E3 rows for an observation reuse the same realized spectrum. The execution audit stores SHA-256 hashes for clean spectrum, observed spectrum, Gaussian component, baseline, outlier indices and values, together with realized gain/offset, component summaries, and the independently recomputed adaptive scales. Table S4 lists the scenario parameters.
+
+Supplementary Results
+=====================
+
+SR1. Sheffield acquisition-level failure-mode visualization
+-----------------------------------------------------------
+Supplementary Figure S1 reproduces the complete acquisition-level thickness-estimate visualization from the frozen Sheffield analysis. Filled markers denote valid completions; open X symbols denote retained 1000 nm upper-boundary failures; dotted lines denote vendor-reported references. The figure is diagnostic rather than metrological: the inputs are coated-to-uncoated relative curves whereas the frozen forward model represents absolute reflectance, and the vendor reference method/uncertainty are incomplete. Table S10 reports only frozen summary quantities; no unreported acquisition value is reconstructed from the plotted pixels.
+
+SR2. Bootstrap-resampling sensitivity
+-------------------------------------
+Supplementary Figure S2 compares the prespecified pooled observation-level percentile bootstrap with the material-by-thickness-stratified sensitivity bootstrap for the two key endpoints used for visual sensitivity assessment: the mean and q95 AE contrasts. Large impulsive, baseline-drift, and mixed effects retain their direction. The complete mean/q90/q95 sensitivity results, including the near-zero endpoints, are reported in Table S11. The stratified analysis is a sensitivity analysis and does not replace the pooled primary analysis.
+
+SR3. Fine-scale index versus candidate error change
+---------------------------------------------------
+Supplementary Figure S3 plots I_fine against the candidate-minus-E3 absolute-error change for all 579 V2-eligible observations in the independent-seed validation. Baseline-drift candidates occupy the lower-I_fine region and all 200 are retained by Fine-q75. Gaussian and impulsive candidates extend to much larger I_fine, and Fine-q75 removes many of them. The distribution shows that I_fine enriches for safer intervention patterns while retaining overlap between beneficial and harmful candidates. The final gate is therefore interpreted as selective risk reduction, not a deterministic guarantee of improvement.
+
+SR4. Fine-gate development sensitivity
+--------------------------------------
+Supplementary Figure S4 and Tables S6a-S6b report V2, Fine-q50, Fine-q75, and Fine-q90 replay on frozen development candidate fields. Overall mean AE differences in Table S6a are computed after fallback, so nonaccepted observations contribute zero paired change relative to E3. For every rule, the accepted count is exactly the sum of improved and worsened accepted candidates. Accepting all triggered candidates is not part of this figure because it represents a different accept-all sensitivity; the archived audit showed that such unrestricted intervention was harmful in overall mean error. Fine-q75 was frozen before the independent-seed validation and was not retuned there.
+
+SR5. Reference-implementation runtime summary
+---------------------------------------------------
+Reference-implementation runtime is reported numerically in Table S9 rather than as a separate figure. The reference implementation is computationally dominated by E3 robust multibasin profiling, whereas the incremental E4 step is comparatively small once the E3 anchor is available. These values are implementation- and hardware-dependent and are included only to delimit practical computational cost.
+
+SR6. Complete cell-level and failure accounting
+-----------------------------------------------
+Table S5 reports n, mean, median, q90, q95, maximum AE, boundary count, non-ok count, and convergence count for all 3 materials x 3 thicknesses x 4 contamination scenarios x 3 estimators. The single non-ok result in the 21,600-row selected-material/thickness table is Material C / 380 nm / mixed / E0, which reached 699.99998 nm and AE=319.99998 nm. The record is retained in all unconditional summaries. Tables S8a-S8c provide status/fallback accounting for the selected-material and E4 analyses. Table S8b reports fallback reasons from the development-set development-v1 candidate audit. The source is the development candidate table, not the independent-seed validation table. To prevent confusion with the operational V2/Fine-q75 rules, the original raw label "accepted" is displayed as "development_v1_accepted". The development-v1 gate accepted 78 observations in total; these counts must not be interpreted as the operational V2 or Fine-q75 acceptance counts reported in Table S8c.
+
+Supplementary Figure Captions
+=============================
+
+Figure S1. Complete Sheffield acquisition-level thickness estimates. Filled estimator-coded markers denote valid completions; open X symbols denote retained upper-boundary failures at their numerical estimates. Dotted lines show vendor-reported reference thicknesses (476.3 and 198.7 nm). The figure is a failure-mode diagnostic and does not establish traceable physical accuracy.
+
+Figure S2. Sensitivity of key selected-material/thickness AE contrasts to bootstrap resampling. Circles show the prespecified pooled observation-level percentile bootstrap intervals and squares show material-by-thickness-stratified sensitivity intervals for the mean and q95 endpoints. Point estimates are identical because only the resampling scheme changes. Negative contrasts favor E3. The complete mean/q90/q95 results are reported in Table S11.
+
+Figure S3. Fine-scale normalized energy index versus candidate-minus-E3 absolute-error change for V2-eligible independent-seed validation candidates. The vertical line is the frozen q75 threshold I_fine=435.96252114890945 and the horizontal line indicates no AE change. The index is plotted as log10(1+I_fine) because it is not a 0-1 fraction and spans several orders of magnitude.
+
+Figure S4. Development-set sensitivity of the fine-scale gate. Bars show improved, worsened, and total accepted counts for V2 and Fine-q50/q75/q90 replays on the frozen candidate table. Accepted = Improved + Worsened for each rule. Candidate thicknesses were not recomputed during these gate replays. Fine-q75 was frozen before the independent-seed validation.
+
+
+Supplementary Table Captions
+============================
+
+Table S1. Material systems, optical-constant provenance, and common forward-model settings.
+Table S2. Frozen E0/E1/E3 numerical settings.
+Table S3. Frozen E4-HORP geometry, projection, optimization, trust-region, trigger, V2, and Fine-q75 parameters.
+Table S4. Contamination parameters and registered outlier counts for the selected-material/thickness simulation study.
+Table S5. Complete cell-level AE and failure summaries for all material x thickness x scenario x estimator combinations.
+Table S6a. Overall Fine-q50/q75/q90 acceptance sensitivity on the development candidates.
+Table S6b. Scenario-specific Fine-q50/q75/q90 development sensitivity.
+Table S7a. Overall independent-seed validation outcomes, including Wilson 95% intervals for the improvement fraction among accepted candidates and read-only paired-bootstrap intervals for mean AE contrasts.
+Table S7b. Scenario-specific independent-seed validation outcomes and mean-contrast intervals.
+Table S7c. Complete read-only paired-bootstrap contrast table for V2, Frozen Fine-q75, and their direct comparison.
+Table S8a. Selected-material/thickness estimator status counts.
+Table S8b. Development-set development-v1 E4 candidate-audit fallback-reason counts by scenario. "development_v1_accepted" denotes the initial development-v1 gate outcome (78 observations in total) and is not operational V2/Fine-q75 acceptance.
+Table S8c. Operational trigger, V2 eligibility, Fine-q75 eligibility, and final E3 fallback counts.
+Table S9. Reference-implementation runtime quantiles.
+Table S10. Frozen Sheffield failure-mode summary. IQR values are included only where they were frozen in the source summary; missing SAMPLE2 IQRs are not reconstructed.
+Table S11. Material-by-thickness-stratified bootstrap sensitivity for the selected-material/thickness primary contrasts.
+
+Supplementary Reproducibility
+=============================
+The public scientific labels in the manuscript correspond internally to: mechanism benchmark (Stage26), selected-material/thickness study (Stage28), acceptance-rule development (Stage30), and independent-seed validation (Stage31). The provenance labels are retained here solely to make archived computational artifacts traceable.
+
+Frozen environment: Python 3.12.0; NumPy 2.5.1; SciPy 1.18.0; pandas 2.2.2; pyarrow 17.0.0; matplotlib 3.9.1. The selected-material package used PCG64/SeedSequence and the acceptance-development cloud script requested 32 workers with OMP/MKL/OpenBLAS/NumExpr thread counts set to one per worker. Runtime values should not be generalized to other hardware.
+
+All figure and table artifacts in this supplement are generated from frozen result packages or copied from a frozen canonical visualization. No E0/E1/E3/E4 estimator was rerun to produce the supplementary statistical figures and tables.

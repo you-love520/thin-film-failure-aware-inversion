@@ -1,0 +1,17 @@
+{
+  "schema": "stage30-e4-execution-report/1.0",
+  "status": "PASS",
+  "observations": 7200,
+  "triggered": 5578,
+  "accepted": 78,
+  "fallback_counts": {
+    "accepted": 78,
+    "inner_solver_not_converged": 75,
+    "insufficient_objective_gain": 5425,
+    "trigger_gate_failed": 1622
+  },
+  "mean_absolute_error_e3_nm": 1.3923882193337518,
+  "mean_absolute_error_e4_nm": 1.3918056529290228,
+  "parquet_results_written": true,
+  "parquet_audit_written": true
+}

@@ -1,0 +1,5 @@
+scenario,gaussian_sd,outlier_ratio,nominal_outlier_magnitude,baseline_amplitude,gain_sd,offset_sd,registered_outlier_count_361
+gaussian,0.0008,0.0,0.0,0.0,0.005,0.0002,0
+impulsive,0.0004,0.04,0.012,0.0,0.005,0.0,14
+baseline_drift,0.0004,0.0,0.0,0.0035,0.005,0.0,0
+mixed,0.0008,0.06,0.015,0.0035,0.008,0.0003,22

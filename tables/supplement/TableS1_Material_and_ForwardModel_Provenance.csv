@@ -1,0 +1,4 @@
+material_id,film,substrate,optical_constant_mode,source/provenance,wavelength_nm,forward_model,incidence_deg,spectral_blur_sigma_nm
+A,fused silica,N-BK7,analytic Sellmeier,Malitson fused-silica coefficients; SCHOTT N-BK7 coefficients,420–780,"TMM, coherent single layer",8,0.6
+B,SiO2,Si,"frozen n,k tables",KLA/Filmetrics optical-constants package; Si source record cites Palik,420–780,"TMM, coherent single layer",8,0.6
+C,SiO2 buffer,soda-lime glass,"epsilon-to-(n,k) normalized tables",Zenodo 10.5281/zenodo.15055400; passive k>=0 conversion,420–780,"TMM, coherent single layer",8,0.6

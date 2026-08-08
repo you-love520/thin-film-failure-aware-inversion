@@ -1,0 +1,26 @@
+{
+  "schema": "stage28-material-sources/1.0",
+  "A": {
+    "film": "fused_silica",
+    "substrate": "N-BK7",
+    "mode": "authoritative_v3_analytic",
+    "film_source": "Malitson coefficients in authoritative optics.py",
+    "substrate_source": "N-BK7 Sellmeier coefficients in authoritative optics.py"
+  },
+  "B": {
+    "film": "SiO2",
+    "substrate": "Si",
+    "mode": "normalized_nk_tables",
+    "film_table": "stage28/materials/normalized/kla_sio2_optical_constants.csv",
+    "substrate_table": "stage28/materials/normalized/kla_si_optical_constants.csv",
+    "source_record": "KLA/Filmetrics frozen optical-constants package"
+  },
+  "C": {
+    "film": "SiO2_buffer",
+    "substrate": "soda_lime_glass",
+    "mode": "normalized_nk_tables",
+    "film_table": "stage28/materials/normalized/zenodo_sio2_buffer_nk.csv",
+    "substrate_table": "stage28/materials/normalized/zenodo_soda_lime_nk.csv",
+    "source_record": "Zenodo 10.5281/zenodo.15055400, CC BY 4.0"
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "schema": "stage28-multimaterial-protocol/1.0",
+  "protocol_version": "stage28-mm-v1.0",
+  "status": "FROZEN_BY_USER_DECISION",
+  "frozen_date": "2026-08-05",
+  "scientific_execution_performed": false,
+  "inheritance": {
+    "v3_reconstruction_protocol_sha256": "d6d51b2aa07ee9502b0bc6a16db7c3414ac77647f1b358ba60afc654157dde65",
+    "e3_repair_protocol_sha256": "4c52f8e46218c36c19679ab1bd085ced1f62e901accec1d0b69b601f88a6593b",
+    "e0_e1_source_sha256": "d5c4f331ccfd27b67c0ef9f70ae5af6b5e6ee86996a5f5f31b588175f6186984",
+    "e3_source_sha256": "3b38a99b7e28dfffaddb7729197803dc3dc3d3ab61bfeb76a6482e70362fd4a3",
+    "simulation_source_sha256": "bd4380fe02472d757f327e8f0e569192b6c98386032824499e79ab114112e0e4"
+  },
+  "materials": [
+    {
+      "material_id": "A",
+      "film": "fused_silica",
+      "substrate": "N-BK7",
+      "provider": "authoritative_v3_analytic"
+    },
+    {
+      "material_id": "B",
+      "film": "SiO2",
+      "substrate": "Si",
+      "provider": "frozen_kla_nk_tables"
+    },
+    {
+      "material_id": "C",
+      "film": "SiO2_buffer",
+      "substrate": "soda_lime_glass",
+      "provider": "zenodo_15055400_epsilon_conversion"
+    }
+  ],
+  "thicknesses_nm": [380.0, 520.0, 680.0],
+  "scenarios": ["gaussian", "impulsive", "baseline_drift", "mixed"],
+  "observations_per_cell": 200,
+  "estimators": [
+    {"strategy": "E0_constrained_L2_profile", "loss": "L2"},
+    {"strategy": "E1_full_design_one_step_score", "loss": "Tukey"},
+    {"strategy": "E3_constrained_multistart_robust_profile", "loss": "Tukey"}
+  ],
+  "expected_design_cells": 36,
+  "expected_observations": 7200,
+  "expected_result_rows": 21600,
+  "master_seed": 20260726,
+  "seed_namespace": 280000,
+  "seed_mapping": "280000 + 1000*material_index + 100*thickness_index + scenario_index",
+  "bit_generator": "PCG64",
+  "wavelength_nm": {"minimum": 420.0, "maximum": 780.0, "count": 361},
+  "physical_model": {
+    "model": "tmm",
+    "unpolarized": true,
+    "angle_deg": 8.0,
+    "spectral_blur_sigma_nm": 0.6,
+    "ambient_index": 1.0
+  },
+  "search": {
+    "thickness_bounds_nm": [350.0, 700.0],
+    "coarse_step_nm": 5.0,
+    "local_tolerance_nm": 1e-6,
+    "gain_bounds": [0.0, 2.0],
+    "gain_starts": [0.0, 0.5, 1.0, 1.5, 2.0],
+    "baseline_basis": "Legendre on normalized wavelength",
+    "baseline_order": 2,
+    "max_irls_iterations": 100,
+    "coefficient_relative_tolerance": 1e-8,
+    "objective_relative_tolerance": 1e-10
+  },
+  "robust_scale": {
+    "mode": "adaptive_mad_from_preliminary_complete_design_l2",
+    "floor": 1e-6,
+    "frozen_within_each_estimator_execution": true
+  },
+  "bootstrap": {
+    "iterations": 4000,
+    "confidence_level": 0.95,
+    "interval_method": "percentile",
+    "resampling_unit": "observation_id"
+  },
+  "execution_policy": {
+    "engineering_smoke_required": false,
+    "all_attempted_rows_retained": true,
+    "material_specific_tuning_forbidden": true,
+    "result_driven_protocol_changes_forbidden": true,
+    "manuscript_modification_before_audit_forbidden": true
+  }
+}

@@ -1,0 +1,5 @@
+Method,Formulation,Nuisance handling,Objective,Thickness search,Trigger,Final acceptance/fallback,Primary role,Main limitation
+E0,Constrained L2 profile,bounded L2 gain + order-2 baseline,L2,shared bounded thickness profile,None,None,Fair L2 comparator,Sensitive to sparse outliers
+E1,Full-design one-step robust score,bounded L2 nuisance fit; no robust re-update,Tukey score,shared bounded thickness profile,None,None,Separates robust scoring from robust nuisance fitting,L2 nuisance fit can remain contaminated
+E3,Constrained multistart robust profile,Tukey IRLS re-estimation of gain + baseline,Tukey,deterministic multistart; all finite local minima refined,None,None,Primary sparse-outlier robustness,Does not model structured baseline mismatch
+E4-Fine-q75,E3-anchored HORP refinement,E3 anchor + protected residual-tree coefficients,Tukey + regularization,E3-centered curvature-adaptive trust region,Frozen structural trigger + V2 eligibility,Fine-scale normalized energy index <= 435.96252114890945; otherwise fallback E3,Selective structured-residual refinement,Not a universal E3 replacement; residual mistaken interventions remain

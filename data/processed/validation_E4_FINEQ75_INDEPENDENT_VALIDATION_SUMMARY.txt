@@ -1,0 +1,41 @@
+{
+  "schema": "stage31-e4-fineq75-independent-validation/1.0",
+  "status": "FROZEN_GATE_INDEPENDENT_SEED_VALIDATION",
+  "input": "/root/autodl-tmp/stage31_e4_fineq75_results/MASTER_STAGE30_E4_RESULTS.csv",
+  "new_stage28_master_seed": 20260806,
+  "frozen_tau_fine": 435.96252114890945,
+  "rule_source": "Stage30 fine-scale sensitivity Fine-q75 threshold; fixed before this validation run.",
+  "rules": [
+    {
+      "rule_id": "V2",
+      "frozen_tau_fine": "",
+      "accepted": 579,
+      "improved": 324,
+      "worsened": 255,
+      "unchanged": 6621,
+      "improved_fraction_among_accepted": 0.5595854922279793,
+      "mean_delta_AE": -0.001930143356463666,
+      "median_delta_AE": 0.0,
+      "q90_delta_AE": 0.0,
+      "q95_delta_AE": 0.0,
+      "max_improvement": -0.7971031657953063,
+      "max_worsening": 0.4912642451105853
+    },
+    {
+      "rule_id": "Frozen-Fine-q75",
+      "frozen_tau_fine": 435.96252114890945,
+      "accepted": 485,
+      "improved": 299,
+      "worsened": 186,
+      "unchanged": 6715,
+      "improved_fraction_among_accepted": 0.6164948453608248,
+      "mean_delta_AE": -0.0023350451067654554,
+      "median_delta_AE": 0.0,
+      "q90_delta_AE": 0.0,
+      "q95_delta_AE": 0.0,
+      "max_improvement": -0.7971031657953063,
+      "max_worsening": 0.4912642451105853
+    }
+  ],
+  "warning": "This validates the frozen gate on independent observation seeds; it is not another quantile search."
+}

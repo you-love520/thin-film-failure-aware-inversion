@@ -1,0 +1,31 @@
+block,parameter,frozen_value
+derivatives,first_derivative_step_nm,0.25
+derivatives,second_derivative_step_nm,0.25
+derivatives,second_order_rank_tolerance,1e-10
+residual_tree,tree_depth,2
+residual_tree,window_overlap_fraction,0.25
+residual_tree,basis_per_node,local_constant; local_linear; local_quadratic
+residual_tree,rank_tolerance,1e-10
+residual_tree,condition_limit,100000000.0
+residual_tree,level_weights,1.0; 1.5; 2.25
+physical_projection,eta2,0.5
+physical_projection,first_order_projection_tolerance,1e-08
+optimization,lambda_eta,0.05
+optimization,lambda_tree,0.02
+optimization,inner_maxiter,60
+optimization,inner_tolerance,1e-07
+optimization,outer_solver,bounded scalar minimization
+optimization,outer_xatol_nm,0.001
+optimization,outer_max_nfev,80
+trust_region,R_min_nm,2.0
+trust_region,R_max_nm,15.0
+trust_region,curvature_step_nm,0.5
+trust_region,fallback_radius_nm,10.0
+trust_region,boundary_tolerance_nm,0.001
+trigger,G_B_min,0.002
+trigger,A_B_max,1.0
+trigger,R_I_min,0.5
+trigger,L2_max,0.25
+trigger,Q1_max,1e-08
+operational_V2,G_A_min,0.0001
+Fine-q75,I_fine_max,435.96252114890945

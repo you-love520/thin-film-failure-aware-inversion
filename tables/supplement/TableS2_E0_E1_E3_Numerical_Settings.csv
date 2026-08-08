@@ -1,0 +1,17 @@
+scope,parameter,frozen_value
+Common,thickness bounds,350–700 nm
+Common,coarse grid step,5 nm
+Common,local x tolerance,1e-6 nm
+Common,gain bounds,0–2
+Common,baseline basis,"Legendre P0,P1,P2 on x in [-1,1]"
+Common,gain starts,"0, 0.5, 1.0, 1.5, 2.0"
+Common,adaptive scale,preliminary constrained-L2 profile -> full-design residual -> MAD
+Common,MAD factor / floor,1.4826 / 1e-6
+E1/E3,Tukey tuning c,4.685
+E3,maximum IRLS iterations,100
+E3,coefficient-relative tolerance,1e-8
+E3,objective-relative tolerance,1e-10
+E3,local-minimum relative tolerance,1e-12
+E3,candidate deduplication,1e-4 nm
+E3,candidate rule,all finite E3 robust-profile local minima; no fixed top-k
+E3,selection rule,lowest finite eligible successful E3 objective; failed candidate retained when no eligible success

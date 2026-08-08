@@ -1,0 +1,71 @@
+{
+  "schema": "stage30-e4-horp-parameters/1.0",
+  "status": "development_v1_fixed_for_cloud_run",
+  "note": "This configuration is fixed for the Stage 30 cloud run and uses the old Stage 28 seeds. It is not an independent new-seed final-test freeze.",
+  "estimator_id": "E4_HORP_development_v1",
+  "inherits": {
+    "stage28_protocol_version": "stage28-mm-v1.0",
+    "stage28_observation_seeds": "reuse_existing_stage28_registry_entropy",
+    "e3_anchor_source": "MASTER_STAGE28_RESULTS"
+  },
+  "derivatives": {
+    "first_derivative_step_nm": 0.25,
+    "second_derivative_step_nm": 0.25,
+    "boundary_derivative_rule": "clip_centered_step_inside_global_bounds",
+    "second_order_rank_tolerance": 1e-10
+  },
+  "residual_tree": {
+    "tree_depth": 2,
+    "window_overlap_fraction": 0.25,
+    "basis_per_node": ["local_constant", "local_linear", "local_quadratic"],
+    "node_coordinate_normalization": "node_center_and_half_width",
+    "column_scaling_rule": "weighted_unit_norm_after_physical_projection",
+    "rank_tolerance": 1e-10,
+    "condition_limit": 100000000.0,
+    "penalty_type": "tree_graph_quadratic",
+    "level_weights": [1.0, 1.5, 2.25]
+  },
+  "physical_projection": {
+    "first_order_projection": "strict_weighted_generalized_inverse",
+    "second_order_projection": "graded_weighted_generalized_inverse",
+    "eta2": 0.5,
+    "first_order_projection_tolerance": 1e-8
+  },
+  "optimization": {
+    "lambda_eta": 0.05,
+    "lambda_tree": 0.02,
+    "inner_maxiter": 60,
+    "inner_tolerance": 1e-7,
+    "outer_solver": "scipy_minimize_scalar_bounded",
+    "outer_xatol_nm": 0.001,
+    "outer_max_nfev": 80
+  },
+  "trust_region": {
+    "rule": "e3_curvature_adaptive",
+    "trust_radius_min_nm": 2.0,
+    "trust_radius_max_nm": 15.0,
+    "curvature_step_nm": 0.5,
+    "curvature_fallback_radius_nm": 10.0,
+    "boundary_tolerance_nm": 0.001
+  },
+  "gates": {
+    "tau_trigger_gain": 0.002,
+    "tau_drift_amplitude": 1.0,
+    "tau_identifiability_retention": 0.5,
+    "tau_second_order_leakage": 0.25,
+    "tau_consensus": 0.0,
+    "tau_accept_gain": 0.0005
+  },
+  "consensus": {
+    "window_count": 4,
+    "window_overlap_fraction": 0.25,
+    "use_full_fit_coefficients_only": true
+  },
+  "ablation_variants": [
+    "E3_anchor",
+    "E4_A_tree_no_physical_projection",
+    "E4_B_first_order_projection",
+    "E4_C_first_second_order_projection",
+    "E4_HORP_full_gated"
+  ]
+}

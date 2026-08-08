@@ -1,0 +1,17 @@
+﻿scenario,fallback_reason,count
+baseline_drift,development_v1_accepted,19
+baseline_drift,inner_solver_not_converged,2
+baseline_drift,insufficient_objective_gain,1323
+baseline_drift,trigger_gate_failed,456
+gaussian,development_v1_accepted,14
+gaussian,inner_solver_not_converged,26
+gaussian,insufficient_objective_gain,1194
+gaussian,trigger_gate_failed,566
+impulsive,development_v1_accepted,24
+impulsive,inner_solver_not_converged,43
+impulsive,insufficient_objective_gain,1649
+impulsive,trigger_gate_failed,84
+mixed,development_v1_accepted,21
+mixed,inner_solver_not_converged,4
+mixed,insufficient_objective_gain,1259
+mixed,trigger_gate_failed,516

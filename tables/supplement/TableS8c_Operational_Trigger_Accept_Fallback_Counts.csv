@@ -1,0 +1,5 @@
+scenario,observations,triggered,V2_eligible,Fine_q75_eligible,final_E3_fallback
+baseline_drift,1800,1364,200,200,1600
+gaussian,1800,1242,158,101,1699
+impulsive,1800,1726,38,16,1784
+mixed,1800,1322,183,168,1632

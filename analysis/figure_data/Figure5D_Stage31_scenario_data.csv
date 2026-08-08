@@ -1,0 +1,9 @@
+rule_id,scenario,accepted,improved,worsened,accepted_only_mean_delta_AE
+V2,baseline_drift,200,137,63,-0.0210964249241354
+V2,gaussian,158,58,100,0.0288095214590974
+V2,impulsive,38,3,35,0.0084057592154636
+V2,mixed,183,126,57,-0.0795031170624936
+Frozen-Fine-q75,baseline_drift,200,137,63,-0.0210964249241354
+Frozen-Fine-q75,gaussian,101,42,59,0.0188653022754612
+Frozen-Fine-q75,impulsive,16,2,14,0.015285036787727
+Frozen-Fine-q75,mixed,168,118,50,-0.087755927989937

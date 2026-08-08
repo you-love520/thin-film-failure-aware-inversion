@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software or dataset, please cite the associated manuscript."
+title: "Failure-Mechanism-Aware Robust Profiling with Selective Structured-Residual Refinement for Thin-Film Thickness Inversion"
+type: software
+authors:
+  - family-names: Wu
+    given-names: Guangshuo
+  - family-names: Huang
+    given-names: Yixuan
+  - family-names: Ma
+    given-names: Wenhui
+  - family-names: Zhang
+    given-names: Zhi
+  - family-names: Yang
+    given-names: Lihan
+  - family-names: Zheng
+    given-names: Hao
+version: "1.0.0-rc1"
+date-released: "2026-08-08"
+repository-code: "REPOSITORY_URL_TO_BE_ASSIGNED"

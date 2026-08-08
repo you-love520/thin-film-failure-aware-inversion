@@ -1,0 +1,23 @@
+{
+  "schema": "stage28-execution-report/1.0",
+  "status": "PASS",
+  "observations": 7200,
+  "result_rows": 21600,
+  "strategy_counts": {
+    "E0_constrained_L2_profile": 7200,
+    "E1_full_design_one_step_score": 7200,
+    "E3_constrained_multistart_robust_profile": 7200
+  },
+  "material_counts": {
+    "A": 2400,
+    "B": 2400,
+    "C": 2400
+  },
+  "scenario_counts": {
+    "baseline_drift": 1800,
+    "gaussian": 1800,
+    "impulsive": 1800,
+    "mixed": 1800
+  },
+  "all_adaptive_scales_equal": true
+}

@@ -1,0 +1,5 @@
+Condition,Gaussian_SD,Outlier_fraction,Outlier_magnitude,Baseline_amplitude,Gain_SD,Offset_SD,Materials,Thicknesses_nm,Wavelength_nm,Incidence_angle_deg,Spectral_blur_sigma_nm,Thickness_search_nm,Observations_per_cell
+Gaussian,0.0008,0.0,0.0,0.0,0.005,0.0002,A: fused silica/N-BK7; B: SiO2/Si; C: SiO2 buffer/soda-lime glass,"380, 520, 680",420-780 (361 points),8.0,0.6,350-700; 5 nm coarse step,200
+Impulsive,0.0004,0.04,0.012,0.0,0.005,0.0,A: fused silica/N-BK7; B: SiO2/Si; C: SiO2 buffer/soda-lime glass,"380, 520, 680",420-780 (361 points),8.0,0.6,350-700; 5 nm coarse step,200
+Baseline drift,0.0004,0.0,0.0,0.0035,0.005,0.0,A: fused silica/N-BK7; B: SiO2/Si; C: SiO2 buffer/soda-lime glass,"380, 520, 680",420-780 (361 points),8.0,0.6,350-700; 5 nm coarse step,200
+Mixed,0.0008,0.06,0.015,0.0035,0.008,0.0003,A: fused silica/N-BK7; B: SiO2/Si; C: SiO2 buffer/soda-lime glass,"380, 520, 680",420-780 (361 points),8.0,0.6,350-700; 5 nm coarse step,200

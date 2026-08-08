@@ -1,0 +1,624 @@
+﻿Failure-Mechanism-Aware Robust Profiling with Selective Structured-Residual Refinement for Thin-Film Thickness Inversion
+
+Abstract
+
+Thin-film thickness retrieval from reflectance spectra is a nonlinear inverse problem in which sparse outliers, nuisance coupling, competing thickness basins, and smooth structured residuals can produce different failures. We developed a failure-mechanism-aware estimator hierarchy under a common transfer-matrix forward model and gain-plus-baseline nuisance formulation. The hierarchy comprises a constrained L2 profile (E0), one-step Tukey scoring after L2 nuisance fitting (E1), and a Tukey-based robust multibasin profile estimator (E3). In 7200 simulated observations across three material systems, three thicknesses, and four contamination conditions, E3 substantially reduced impulsive-contamination error relative to E0 (mean absolute-error contrast -1.2496 nm; q95 contrast -2.0403 nm) but was worse under smooth baseline drift (mean contrast +0.1614 nm). This boundary motivated E4-HORP, an E3-anchored local refinement with a physically protected residual tree and selective V2/Fine-q75 acceptance. In independent-seed validation, Fine-q75 reduced accepted E4 interventions from 579 to 485 and error-increasing accepted cases from 255 to 186 while retaining the principal baseline-drift and mixed-contamination benefit regimes. The results support a selective strategy in which sparse contamination, basin ambiguity, and structured residuals are handled by different mechanisms, with fallback to E3 when evidence for additional refinement is insufficient.
+
+Keywords: thin-film thickness inversion; reflectance spectroscopy; robust profiling; Tukey biweight; multibasin optimization; structured residuals; selective refinement; nuisance parameters
+
+1. Introduction
+
+Thin-film thickness is a primary control variable in optical coatings, semiconductor processing, photonic devices, functional films, and roll-to-roll manufacturing because small geometric deviations can alter interference conditions, spectral response, and device performance. Optical methods are especially attractive for thickness characterization because they can be non-contact and non-destructive and can, in principle, be integrated into in-line or in-situ measurement systems. Recent implementations span low-coherence interferometry for moving polymer films [1], phase-shifting interferometry for single- and double-layer transparent films [2], compact spectroscopic reflectance systems intended for low-cost process monitoring [3], and normal-incidence reflectance platforms coupled to numerical optimization [4]. Across these architectures, the physical quantity is not read directly from a detector; it is inferred from an optical response whose wavelength dependence must be interpreted through a forward model.
+
+This inversion step is intrinsically nonlinear. In reflectance-based characterization, film thickness enters the optical phase together with refractive-index dispersion, incidence geometry, and the optical properties of the substrate. Consequently, different parameter combinations or separated thickness basins can produce similar spectral responses. Reflectance-based retrieval has therefore long been recognized as an ill-conditioned inverse problem [5]. Ambiguity is not merely a numerical inconvenience: experimental error can make normal-incidence spectroscopic data insufficient for unique recovery of optical properties in some absorbing-film settings [6], while multi-incidence measurements can provide additional information for thin-film reverse engineering [7]. Related ellipsometric studies likewise show that global-search or hybrid global-local strategies can be useful when conventional local optimization is sensitive to initialization [8]. More recently, physics-constrained adaptive spectral sampling has been proposed specifically to reduce global-convergence failures across a wide thickness range [9]. These studies collectively distinguish two issues that are sometimes conflated: optimization may converge to a local basin, and even a well-converged numerical solution may remain physically ambiguous.
+
+A second source of difficulty arises from spectral discrepancy after the optical model has been fixed. Measured spectra may contain ordinary Gaussian-like noise, isolated detector or acquisition anomalies, imperfect intensity calibration, additive background structure, or smooth drift across wavelength. These disturbances should not be expected to respond to the same correction. Sparse high-amplitude residuals can exert disproportionate leverage on least-squares objectives, motivating robust M-estimation and iteratively reweighted fitting [10]. Smooth spectral backgrounds, in contrast, are commonly handled by explicit baseline models or penalized-smoothing procedures because the discrepancy is distributed over many neighboring wavelengths rather than concentrated in a few samples [11]. In spectroscopy more broadly, orthogonal signal-correction ideas have also been developed to remove nuisance variation while controlling its relationship to information-bearing directions [12]. For thin-film inversion, however, a flexible background model introduces a specific risk: if a residual basis overlaps the spectral change induced by thickness, improved fit quality can be obtained by absorbing thickness-sensitive information rather than by correcting a genuine nuisance component.
+
+Existing studies have addressed important but largely separate parts of this problem. Reflectance inversion has been formulated as constrained nonlinear optimization [5], global and hybrid global-local search has been used to reduce sensitivity to local minima [8,13], and machine-learning approaches have been explored for inverse coating design and thickness estimation [14,15]. These developments improve search, flexibility, or parameter mapping, but they do not determine which corrective mechanism is appropriate for a given residual failure mode. Moreover, some discrepancies are not statistical contamination at all: spectroscopic-reflectance studies of nanoroughness show that structural forward-model error can require explicit physical modeling rather than residual downweighting [16]. The unresolved issue considered here is therefore not simply how to build a stronger optimizer, but how to distinguish sparse contamination, nuisance coupling, competing thickness basins, and smooth structured residuals without allowing one correction mechanism to masquerade as another.
+
+The present work focuses on this distinction. We ask whether a common thin-film forward model and nuisance specification can be used to separate the roles of least-squares profiling, robust residual scoring, full robust nuisance profiling, multibasin thickness search, and selective structured-residual refinement. The estimator hierarchy begins with a constrained L2 profile (E0), followed by a one-step Tukey score applied after an L2 nuisance fit (E1), and then a constrained robust profile with deterministic multistart and local-minimum refinement (E3). This structure tests whether robust scoring alone is sufficient or whether the nuisance block must be re-estimated under the robust objective while competing thickness basins are explicitly retained. The numerical evidence is intentionally failure-mechanism-specific: Gaussian, impulsive, smooth baseline-drift, and mixed contamination are examined separately rather than collapsed into a single generic “noise” condition.
+
+The resulting negative evidence is part of the method design. E3 is effective when sparse impulsive contamination is the dominant disturbance, but it does not become a universal solution merely by using a redescending loss. Smooth structured drift can remain coupled to thickness-sensitive spectral variation and can even favor the simpler comparators. We therefore introduce E4-HORP, an E3-anchored local refinement in which an additional multiscale residual basis is orthogonalized against the current physical spectrum, the original nuisance space, and local first-order thickness sensitivity, with partial protection of the residualized second-order thickness direction. Candidate generation is separated from candidate acceptance, and the final Fine-q75 rule rejects refinements with excessive fine-scale correction energy and otherwise falls back to E3. The contribution is therefore not a new universal robust loss or a claim of global optimality. It is a failure-mechanism-aware inversion framework that assigns different corrective mechanisms to sparse outliers, competing thickness basins, and persistent structured residuals.
+
+Three levels of numerical evidence are used. First, a controlled mechanism benchmark establishes the qualitative split between impulsive contamination and smooth baseline drift. Second, the comparison is extended to three selected material systems and three film thicknesses under a common transfer-matrix model, nuisance design, bounds, and failure accounting. Third, the E4 acceptance rule is developed on one Monte Carlo set and then fixed before evaluation on independently regenerated observations from a new random seed. A public SiO2/Si reflectance dataset is analyzed separately as a limited failure-mode diagnostic rather than as traceable metrological validation. This distinction is deliberate: recent thin-film measurement studies illustrate the stronger evidential standard provided by independently characterized samples, traceable thickness standards, or independent ellipsometric references [4,15,17]. Accordingly, the objective here is not to claim instrument-level accuracy, but to determine which failure mechanisms are corrected by robust profiling, which require structured residual treatment, and when a conservative fallback is preferable to additional model flexibility.
+
+2. Materials and Methods
+
+2.1. Physics-Based Forward Model and Shared Nuisance Formulation
+----------------------------------------------------------------------
+
+We considered single-layer thin-film thickness inversion from visible-range reflectance spectra. For wavelength samples λ_i (i = 1, ..., n), the measured spectrum is y = [y_1, ..., y_n]^T, the candidate thickness is d, and the material/instrument configuration is M. For a fixed d, the forward spectrum f(d; M) was computed with the characteristic-matrix formulation for a coherent single layer.
+
+For polarization q ∈ {s,p},
+
+    M_q(d,λ) =
+      [ cosδ                  i sinδ / η_1,q
+        i η_1,q sinδ          cosδ             ],                 (1)
+
+where
+
+    δ(λ,d) = 2π n_1(λ)d cosθ_1 / λ,                               (2)
+
+and the implementation used η_s = n cosθ and η_p = n/cosθ. With M_q = [[M_11,M_12],[M_21,M_22]],
+
+    r_q =
+      [η_0,q M_11 + η_0,qη_2,qM_12 - M_21 - η_2,qM_22]
+      /[η_0,q M_11 + η_0,qη_2,qM_12 + M_21 + η_2,qM_22],
+
+and the unpolarized reflectance was
+
+    R(λ,d) = (|r_s|^2 + |r_p|^2)/2.                               (3)
+
+The ambient refractive index was n_0 = 1, and the substrate was treated as semi-infinite. Transparent materials followed the three-term Sellmeier relation
+
+    n^2(λ) = 1 + Σ_{j=1}^3 B_j λ^2/(λ^2-C_j),                    (4)
+
+with λ in μm. Fused silica used the Malitson dispersion relation [20], and N-BK7 used the SCHOTT N-BK7 dispersion coefficients [21]. For the SiO2/Si system, the fixed Si complex-index table was obtained from the KLA/Filmetrics refractive-index database, whose stated reference is Palik [22,23]. For the SiO2-buffer/soda-lime-glass system, the fixed optical-property data were taken from the Aulika et al. study and its associated Zenodo dataset [24,25]. Tabulated n,k values were interpolated only within their validated wavelength support. Where optical data were supplied as ε = ε_1+iε_2, the passive principal branch was obtained from
+
+    ρ = sqrt(ε_1^2+ε_2^2),
+    n = sqrt[(ρ+ε_1)/2],
+    k = sqrt[(ρ-ε_1)/2],   k ≥ 0.                                 (5)
+
+The simulations used 361 equally spaced wavelengths from 420 to 780 nm, an incidence angle of 8°, and a Gaussian spectral blur with σ = 0.6 nm. Additional implementation details for complex-angle branch selection, interpolation, and edge handling are given in Supplementary Methods S1.
+
+All E0, E1, and E3 comparisons used the same nuisance model,
+
+    y = g f(d;M) + B_2β + ε,                                      (6)
+
+where 0 ≤ g ≤ 2 is a multiplicative gain and B_2β is a second-order Legendre baseline. With wavelength normalized to x ∈ [-1,1],
+
+    B_2 = [1, x, (3x^2-1)/2].
+
+The baseline coefficients were unbounded. For a fixed d, gain and baseline coefficients were treated as conditional nuisance parameters and profiled before the outer thickness comparison. This construction is related to separable nonlinear least squares and variable projection [26,27], although the robust E3 estimator uses a Tukey objective and IRLS rather than classical closed-form least-squares VARPRO.
+
+Figure 1 summarizes the complete physics-to-inversion workflow.
+
+2.2. Constrained L2, One-Step Robust Scoring, and Robust Multibasin Profiling
+----------------------------------------------------------------------
+
+2.2.1. Observation-level robust scale and Tukey loss
+
+A single residual scale was estimated for each observation and then held fixed for all E1/E3 thickness evaluations. First, the complete constrained L2 profile was minimized to obtain d_L2. The gain-plus-baseline model was refitted at d_L2, yielding residual r_pre. The primary scale estimate was
+
+    s_MAD = 1.4826 median_i |r_pre,i - median(r_pre)|.             (7)
+
+If this value was nonfinite or below 10^-6, the implementation used a centered-RMS fallback with the same 10^-6 floor. This safeguard was not activated in the primary multi-material records.
+
+For u = r/s, the Tukey biweight used c_T = 4.685,
+
+    ρ_T(u) =
+      (c_T^2/6){1-[1-(u/c_T)^2]^3},   |u|≤c_T
+      c_T^2/6,                         |u|>c_T.                    (8)
+
+The corresponding redescending IRLS weight was [1-(u/c_T)^2]^2 inside the cutoff and zero outside it [10,28]. A numerical weight floor used only inside the weighted least-squares subproblem is documented in Supplementary Methods S2.
+
+2.2.2. Estimator hierarchy
+
+The constrained L2 reference estimator was
+
+    J_0(d) =
+      min_{0≤g≤2,β}
+      (1/n)||y-gf(d;M)-B_2β||_2^2.                                (9)
+
+E1 used the same bounded L2 nuisance fit at each d but evaluated its residual with the Tukey loss,
+
+    J_1(d) =
+      (1/n)Σ_i ρ_T(
+        [y_i-g_L2(d)f_i(d;M)-(B_2β_L2(d))_i]/s
+      ).                                                         (10)
+
+E1 therefore changes residual scoring without robustly re-estimating the nuisance block.
+
+E3 instead re-estimated the complete nuisance block under the robust objective,
+
+    J_3(d) =
+      min_{0≤g≤2,β}
+      (1/n)Σ_i ρ_T(
+        [y_i-gf_i(d;M)-(B_2β)_i]/s
+      ).                                                         (11)
+
+The E3 inner solve used bounded IRLS with at most 100 iterations, a coefficient-relative tolerance of 10^-8, and an objective-relative tolerance of 10^-10. The global thickness interval was 350–700 nm with a 5 nm coarse grid. At every evaluated thickness, deterministic gain starts {0,0.5,1.0,1.5,2.0} were used. All finite discrete local minima were retained and refined; no fixed top-k truncation was applied. Refined candidates within 10^-4 nm were deduplicated, and failed or boundary states were recorded rather than silently removed. Full plateau grouping, refinement, and fallback rules are given in Supplementary Methods S2.
+
+E3 is therefore a complete robust-profile/multibasin procedure, whereas E1 is a score-only comparator. Consequently, E3−E1 is not interpreted as a pure ablation of nuisance re-estimation.
+
+Table 1. Estimator definitions and scientific roles.
+
+| Method | Nuisance update | Residual objective | Thickness search | Structural extension | Scientific role |
+| --- | --- | --- | --- | --- | --- |
+| E0 | Bounded complete-design L2 fit | L2 | Bounded profile search | None | Fair L2 reference |
+| E1 | Bounded L2 fit; no robust re-update | Tukey one-step score | Prespecified basin search | None | Score-only robust comparator |
+| E3 | Bounded robust IRLS update of gain + baseline | Tukey | Robust-profile local-minimum discovery + deterministic multistart refinement | None | Complete robust-profile/multibasin estimator |
+| E4-Fine-q75 | Anchored to E3; local robust refit | Tukey + fixed penalties | E3-centered trust region | Physically protected residual tree | Selective structured-residual refinement with fallback |
+
+2.3. E4-HORP: E3-Anchored Selective Structured-Residual Refinement
+----------------------------------------------------------------------
+
+E4-HORP (E3-Anchored Higher-Order Orthogonal Residual-tree Profiling) was introduced for structured residuals that remain after E3. E4 does not repeat the global inversion. Instead, it constructs an E3-centered local candidate and accepts that candidate only when predefined structural criteria are satisfied.
+
+2.3.1. Physical sensitivity protection
+
+Let (d_3,g_3,β_3) be the E3 solution and W_3 the diagonal Tukey-weight matrix at the E3 residual. With finite-difference thickness sensitivity f'(d_3), the first-order protected space was
+
+    T_1 = [f(d_3;M), B_2, g_3f'(d_3)],
+
+    Π_1 = T_1(T_1^T W_3T_1)^†T_1^T W_3,
+
+    S_1 = (I-Π_1)S_raw.                                           (12)
+
+A residualized second-order direction h_2,⊥ was constructed from h_2 = g_3f''(d_3), and the final protected dictionary was
+
+    Π_2 =
+      h_2,⊥(h_2,⊥^T W_3h_2,⊥)^†h_2,⊥^T W_3,
+
+    S_phys = (I-η_2Π_2)S_1,     η_2 = 0.5.                        (13)
+
+Thus, the added residual basis was orthogonalized against the physical spectrum, the original low-order nuisance space, and the first-order thickness direction, while the residualized second-order direction was only partially suppressed. The fixed value η_2 = 0.5 is not claimed to be theoretically optimal. Finite-difference boundary rules and second-order deactivation criteria are reported in Supplementary Methods S3.
+
+2.3.2. Residual tree, local objective, and trust region
+
+The residual dictionary was a depth-2 binary wavelength tree with 0.25 window overlap. Each node contributed smooth local constant, linear, and quadratic atoms. The tree used level weights [1.0,1.5,2.25]. Importantly, it did not contain fixed sine/cosine atoms matched to the synthetic baseline generator.
+
+The local model was
+
+    y = g f(d;M) + B_2β + S_physγ + ε,                             (14)
+
+with objective
+
+    J_4 =
+      (1/n)Σ_iρ_T(r_i/s_3)
+      + λ_η||η-η_3||_2^2
+      + λ_tree||L_treeγ||_2^2,                                   (15)
+
+where λ_η = 0.05 and λ_tree = 0.02. The gain remained constrained to [0,2]. The inner E4 solve used at most 60 IRLS iterations.
+
+The local thickness-search radius was based on fixed-E3-nuisance data-fit curvature, not on a reprofiled E3 objective. Define
+
+    J_fix(d|g_3,β_3) =
+      (1/n)Σ_iρ_T(
+        [y_i-g_3f_i(d;M)-(B_2β_3)_i]/s_3
+      ).                                                         (16)
+
+With h_c = 0.5 nm,
+
+    κ =
+      max{
+        [J_fix(d_-)-2J_fix(d_3)+J_fix(d_+)]/h_c^2,
+        0
+      },
+
+    R =
+      clip[
+        R_max / sqrt(1 + R_max^2κ/max(|J_fix(d_3)|,ε)),
+        R_min,
+        R_max
+      ],                                                         (17)
+
+where d_- and d_+ are the globally clipped d_3∓h_c points, R_min = 2 nm, and R_max = 15 nm. A failed curvature calculation used a 10 nm fallback radius. The final one-dimensional local search used bounded scalar minimization with xatol = 0.001 nm. Equation (17) is a trust-radius heuristic, not a global identifiability measure.
+
+2.3.3. Fixed trigger, V2 acceptance, and Fine-q75 filtering
+
+At the E3 anchor, the residual-tree fit was required to show sufficient fit gain without excessive correction amplitude or loss of thickness-sensitive information. Define
+
+    G_B = (J_base-J_tree)/max(|J_base|,ε),                         (18)
+
+    A_B = sqrt(b^TW_3b) / [sqrt(r_3^TW_3r_3)+ε],                  (19)
+
+where b = S_physγ_anchor. For any nuisance space A, define the weighted residualized-energy ratio
+
+    I(v;A,W) =
+      ||W^(1/2)(I-P_{A,W})v||_2^2 /
+      [||W^(1/2)v||_2^2+ε].                                      (20)
+
+With T_η = [f(d_3;M),B_2] and v_d = g_3f'(d_3),
+
+    R_I =
+      I(v_d;[T_η,S_phys],W_3) /
+      [I(v_d;T_η,W_3)+ε].                                        (21)
+
+The trigger further used a second-order leakage index L_2 and first-order projection QC index Q_1 (definitions in Supplementary Methods S3). Candidate generation was permitted only if
+
+    G_B ≥ 0.002,
+    A_B ≤ 1.0,
+    R_I ≥ 0.5,
+    L_2 ≤ 0.25,
+    Q_1 ≤ 10^-8.                                                  (22)
+
+Otherwise, the method immediately returned d_3.
+
+For a generated candidate d_4, the V2 acceptance rule used
+
+    G_A =
+      (J_anchor-J_candidate)/max(|J_anchor|,ε),
+
+    V2_eligible =
+      triggered AND inner_converged AND G_A ≥ 10^-4.              (23)
+
+The initial development-v1 safety gate contained additional diagnostics; those development details are reported in Supplementary Methods S4 and are not additional predicates in Equation (23).
+
+Fine-q75 then applied a scale-selectivity filter to the fitted residual-tree correction. If b_l is the contribution from retained tree level l,
+
+    A_total = ||W_3^(1/2)Σ_l b_l||_2^2,
+
+    A_fine = Σ_{l∈L_fine}||W_3^(1/2)b_l||_2^2,
+
+    I_fine = A_fine/(A_total+10^-12).                              (24)
+
+Because level-wise corrections are not an orthogonal energy decomposition, I_fine is a normalized index, not a 0–1 fraction. The development-set q75 threshold was fixed before independent validation at
+
+    τ_fine = 435.96252114890945.                                  (25)
+
+The final rule was
+
+    Fine_q75_eligible =
+      V2_eligible AND I_fine ≤ τ_fine,
+
+    d_final =
+      d_4,  if Fine_q75_eligible,
+      d_3,  otherwise.                                            (26)
+
+Fine-q75 filters an already generated candidate; it does not recompute candidate thickness.
+
+2.4. Numerical Evidence Design
+----------------------------------------------------------------------
+
+The numerical evidence was organized into three distinct layers: a mechanism benchmark, a selected-material/thickness simulation study, and a predefined-rule independent-seed validation. A public real-spectrum dataset was analyzed separately as a limited failure-mode diagnostic.
+
+2.4.1. Mechanism benchmark
+
+The mechanism benchmark used a fused-silica/N-BK7 single-layer system and contained 5,400 independent observations, 14,800 observation-condition instances, and 22,000 estimator executions. The independent statistical unit was the observation, not the estimator execution.
+
+The four primary conditions were Gaussian, impulsive, baseline drift, and mixed contamination. Additional predefined suites examined mixed-tail behavior, fixed-scale sensitivity, model mismatch, baseline order, physical uncertainty, and multiple true thicknesses. Only claim-mapped outputs are used in the main text.
+
+2.4.2. Selected-material/thickness simulation study
+
+The main generalization study evaluated three selected material systems,
+
+    A: fused silica / N-BK7,
+    B: SiO2 / Si,
+    C: SiO2 buffer / soda-lime glass,
+
+at d_true ∈ {380,520,680} nm under the same four contamination conditions. Each material×thickness×condition cell contained 200 independent observations, giving 7,200 observations and 21,600 E0/E1/E3 estimator records.
+
+Table 2. Simulation conditions for the selected-material/thickness study.
+
+| Condition | Gaussian SD | Outlier fraction | Nominal outlier magnitude | Baseline amplitude | Gain SD | Offset SD |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Gaussian | 0.0008 | 0 | 0 | 0 | 0.005 | 0.0002 |
+| Impulsive | 0.0004 | 0.04 | 0.012 | 0 | 0.005 | 0 |
+| Baseline drift | 0.0004 | 0 | 0 | 0.0035 | 0.005 | 0 |
+| Mixed | 0.0008 | 0.06 | 0.015 | 0.0035 | 0.008 | 0.0003 |
+
+For normalized wavelength x ∈ [-1,1], the observation generator was
+
+    y = g f(d_true;M) + o·1 + b(x) + ε + o_sparse,                (27)
+
+with
+
+    g = 1+ξ_g,   ξ_g ~ N(0,σ_g^2),
+    o = ξ_o,     ξ_o ~ N(0,σ_o^2),
+    ε_i iid ~ N(0,σ^2).
+
+The unscaled smooth baseline was
+
+    b_raw(x) =
+      c_0+c_1x+c_2x^2+c_3 sin(1.35πx+φ),                          (28)
+
+where the coefficients were independently drawn with means [0.15,0.55,0.30,0.18] and SDs [0.05,0.08,0.08,0.04], and φ ~ Uniform(-0.5,0.5). After demeaning, b_raw was normalized by its maximum absolute value and multiplied by the condition-specific baseline amplitude. Sparse outliers used round(p_out n) uniformly sampled indices without replacement, equiprobable signs ±1, and amplitudes A_out×Uniform(0.75,1.25). The baseline-drift condition had no independent additive-offset draw. The full RNG registry and denominator safeguards are given in Supplementary Methods S5.
+
+This study is a selected-material/selected-thickness simulation generalization; it is not an external validation and does not establish material-independent performance.
+
+2.4.3. Acceptance-rule development and independent-seed validation
+
+The acceptance-rule development set contained 7,200 observations. E4 candidate generation was executed first with fixed geometry, residual tree, regularization, trust region, and solver settings. V1→V2→Fine-q50/q75/q90 comparisons were then applied to the stored development candidate fields; candidate thicknesses were not recomputed during this gate development.
+
+After V2+Fine-q75 had been fixed, an independent-seed Monte Carlo set was generated with master seed 20260806 under the same generative design. E0/E1/E3 and E4 candidate generation were rerun on these newly seeded observations. No validation-set threshold search or algorithm modification was allowed. This is an independent-seed replication under the same distributional design, not an external or cross-domain validation.
+
+2.4.4. Limited public real-spectrum evaluation
+
+The limited public real-spectrum evaluation used the University of Sheffield dataset associated with Sánchez-Arriaga et al. [3,29]. The source study employed Si/SiO2 reference standards with vendor-reported oxide thicknesses of 476.3 and 198.7 nm. After filtering to 450–700 nm, 18 spectra per sample were retained, giving 36 acquisitions and 108 prespecified E0/E1/E3 executions.
+
+The source reflectometry procedure compares coated and uncoated reflected intensities after dark/reference processing [3], whereas the fixed forward model used here produces absolute SiO2/Si reflectance. The public source also does not provide a traceable reference-thickness uncertainty for the two standards. The dataset is therefore used only to examine numerical completion and failure modes, not to claim traceable physical accuracy.
+
+2.5. Statistical Analysis and Failure Accounting
+----------------------------------------------------------------------
+
+Absolute thickness error was
+
+    AE = |d_hat-d_true|.                                         (29)
+
+For methods A and B, the paired observation-level difference was
+
+    δ_i(A,B) = AE_A,i-AE_B,i,                                    (30)
+
+the mean contrast was
+
+    Δμ(A,B) = mean(AE_A)-mean(AE_B),                              (31)
+
+and the upper-tail contrasts were differences between method-specific AE quantiles,
+
+    ΔQ_p(A,B) = Q_p(AE_A)-Q_p(AE_B),  p∈{0.90,0.95}.             (32)
+
+Negative values favor the first-named method. Importantly, ΔQ_p is not Q_p(δ_i). Accepted-only development q90/q95 values, when reported, are explicitly Q_p(δ_i | accepted).
+
+The mechanism benchmark used observation-level cluster bootstrap resampling. The selected-material/thickness study used paired 4,000-resample observation-level percentile bootstrap intervals. A material×thickness-stratified bootstrap was used as a sensitivity analysis; it did not replace the primary balanced-mixture analysis. No family-wise multiplicity adjustment was applied across all scenarios and endpoints, so the collection is not interpreted as a single omnibus hypothesis test.
+
+Independent-seed validation additionally reported accepted, improved, worsened, and fallback counts. Four-thousand-resample paired bootstrap intervals were computed for V2−E3, Fine-q75−E3, and Fine-q75−V2 overall mean AE differences, and Wilson 95% intervals were reported for the improvement fraction among accepted candidates.
+
+Execution completion, numerical eligibility, statistical inclusion, and physical accuracy were treated separately. Failed, nonfinite, and boundary results were not silently removed; fallback to E3 is part of the E4 algorithm.
+
+2.6. Computational Implementation and Reproducibility
+----------------------------------------------------------------------
+
+The computational environment used NumPy 2.5.1, SciPy 1.18.0, pandas 2.2.2, and pyarrow 17.0.0. Observation generation used NumPy Generator with PCG64 and SeedSequence. The development simulation used master seed 20260726 and the independent-seed validation used 20260806.
+
+All main data figures and statistical tables were generated through a traceable chain,
+
+    stored CSV/parquet outputs
+    → scripted statistical analysis
+    → figure/table source data
+    → vector and high-resolution raster output
+    → manuscript.
+
+Failed and boundary records were retained. Representative spectra in Figure 2 were deterministically reconstructed from the stored registry and verified against stored spectrum hashes. Exact seed mappings, software/hardware reports, figure/table hashes, and development-gate audit diagnostics are provided in Supplementary Reproducibility.
+
+2.7. Generative-AI Assistance in Manuscript Preparation
+
+Generative-AI tools from OpenAI (ChatGPT and Codex; model versions varied across sessions and were not systematically recorded) were used during manuscript preparation for drafting, structural revision, literature organization, and internal consistency checking. They were not used to generate or alter the scientific simulation outputs, stored estimator results, or reported statistical values. All equations, numerical results, citations, figures, tables, and scientific claims were reviewed by the authors against the source code, stored result tables, and primary literature.
+
+======================================================================
+3. Results
+======================================================================
+
+3.1. The Mechanism Benchmark Revealed Scenario-Dependent Behavior
+----------------------------------------------------------------------
+
+The mechanism benchmark did not support a universal ranking of E3. Under Gaussian contamination, the mean E3−E0 contrast was +0.00463 nm (95% CI, -0.00419 to +0.01330 nm; n=200). Because the interval crossed zero and no formal equivalence test had been prespecified, neither superiority nor equivalence was inferred.
+
+Under impulsive contamination, E3 reduced both central and upper-tail error relative to E0: the mean contrast was -0.5537 nm (95% CI, -0.6248 to -0.4839), while ΔQ_0.90 and ΔQ_0.95 were -1.0414 nm (95% CI, -1.2463 to -0.9565) and -1.2526 nm (95% CI, -1.4254 to -1.0549), respectively.
+
+Mixed contamination showed a different pattern. The mean E3−E0 contrast was +0.0257 nm (95% CI, -0.1827 to +0.2241), whereas the q90 and q95 quantile contrasts were -0.8088 nm (95% CI, -1.2201 to -0.0477) and -0.7499 nm (95% CI, -1.2273 to -0.2646). Thus, the mean did not establish an E3 advantage, but the upper tail favored E3.
+
+Baseline drift reversed the direction: E3−E0 mean, q90, and q95 contrasts were +0.2842, +0.5585, and +0.6705 nm, with the bootstrap intervals above zero. The E3−E1 mean contrast was also positive (+0.14299 nm; 95% CI, +0.12115 to +0.16633). This negative result showed that outlier-robust profiling alone did not resolve smooth structured drift and motivated the subsequent E4 refinement.
+
+3.2. Multi-Material/Thickness Simulations Reproduced the Failure-Mechanism Split
+----------------------------------------------------------------------
+
+The selected-material/thickness study contained 7,200 observations and 21,600 estimator records. Of these records, 21,599 had status `"ok"`. The only abnormal record was Material C / 380 nm / mixed / E0: the estimate reached the 700 nm upper bound (699.99998 nm), giving AE = 319.99998 nm. This record was retained and is explicitly annotated in Figure 4 and Table 3.
+
+Table 3 and Figure 3 summarize the primary pooled contrasts.
+
+Table 3. Primary AE contrasts across the selected materials and thicknesses (4,000-resample observation-level percentile bootstrap).
+
+| Condition | Comparison | Estimand | AE contrast (nm) | 95% CI (nm) |
+| --- | --- | --- | ---: | --- |
+| Gaussian | E3−E0 | Mean | +0.008597 | [+0.005214, +0.012070] |
+| Gaussian | E3−E0 | q90 | +0.027219 | [+0.000052, +0.053395] |
+| Gaussian | E3−E0 | q95 | +0.028302 | [-0.001100, +0.059780] |
+| Gaussian | E3−E1 | Mean | +0.000219 | [+0.000038, +0.000392] |
+| Gaussian | E3−E1 | q90 | +0.003628 | [-0.002970, +0.006210] |
+| Gaussian | E3−E1 | q95 | -0.004780 | [-0.007604, +0.006509] |
+| Impulsive | E3−E0 | Mean | -1.249558 | [-1.831214, -0.774913] |
+| Impulsive | E3−E0 | q90 | -1.567223 | [-1.669757, -1.467004] |
+| Impulsive | E3−E0 | q95 | -2.040323 | [-2.198003, -1.851873] |
+| Impulsive | E3−E1 | Mean | -0.013634 | [-0.017456, -0.009895] |
+| Impulsive | E3−E1 | q90 | -0.041699 | [-0.059031, -0.029756] |
+| Impulsive | E3−E1 | q95 | -0.062136 | [-0.081214, -0.032304] |
+| Baseline drift | E3−E0 | Mean | +0.161383 | [+0.144244, +0.179448] |
+| Baseline drift | E3−E0 | q90 | +0.443157 | [+0.221944, +0.569365] |
+| Baseline drift | E3−E0 | q95 | +0.463166 | [+0.194269, +0.824999] |
+| Baseline drift | E3−E1 | Mean | +0.073734 | [+0.064089, +0.083929] |
+| Baseline drift | E3−E1 | q90 | +0.251900 | [+0.068934, +0.331714] |
+| Baseline drift | E3−E1 | q95 | +0.204896 | [+0.049176, +0.483166] |
+| Mixed | E3−E0 | Mean | -3.011588 | [-4.124324, -2.014616] |
+| Mixed | E3−E0 | q90 | -0.864734 | [-1.500520, -0.387092] |
+| Mixed | E3−E0 | q95 | -2.245925 | [-3.168563, -1.597683] |
+| Mixed | E3−E1 | Mean | -0.013472 | [-0.027016, -0.000134] |
+| Mixed | E3−E1 | q90 | +0.014636 | [-0.237130, +0.188821] |
+| Mixed | E3−E1 | q95 | -0.161068 | [-0.358469, +0.224567] |
+
+Under Gaussian contamination, E3 showed a small directionally resolved increase in mean AE relative to E0 (+0.008597 nm) and E1 (+0.000219 nm). This small cost was retained explicitly rather than described as equivalence.
+
+The strongest and most consistent E3 benefit occurred under impulsive contamination. All three E3−E0 endpoints and all three pooled E3−E1 endpoints were below zero. The E3−E1 contrast, however, represents the complete difference between E1 and E3—including both robust nuisance re-estimation and E3's broader robust-profile basin search—and is not a matched ablation of nuisance updating.
+
+Baseline drift again favored the simpler comparators: the E3−E0 and E3−E1 mean and upper-tail contrasts were all positive. Figure 4 shows that the magnitude of this failure varied by material and thickness, supporting the interpretation that structured drift interacts with local spectral identifiability.
+
+Under mixed contamination, the E3−E0 mean and upper-tail contrasts were negative, but the pooled mean (-3.011588 nm) was strongly affected by the retained 319.99998 nm E0 boundary event and should not be interpreted in isolation. Relative to E1, the mean E3−E1 contrast was slightly negative, whereas the q90/q95 intervals crossed zero. These results again argue against a single global ranking.
+
+A material×thickness-stratified bootstrap sensitivity preserved the direction of the large impulsive, baseline-drift, and mixed effects. Near-zero interval crossing was less stable to the resampling scheme; accordingly, this stratified analysis is reported in Supplementary Results and is not used to replace the prespecified pooled analysis.
+
+3.3. Acceptance-Rule Development Showed Why E4 Needed Selective Intervention
+----------------------------------------------------------------------
+
+The acceptance-rule development set contained 7,200 observations, of which 5,578 passed the fixed trigger and generated E4 candidates. The E3 anchor mean AE was 1.392388219 nm. An initial conservative acceptance gate accepted 78 candidates and changed the overall mean AE by only -0.000582566 nm relative to E3.
+
+The V2 acceptance rule was then applied to the existing candidate fields without recomputing candidates. V2 accepted 565 candidates: 324 improved, 241 worsened, and 6,635 fell back to E3. The resulting overall mean contrast was -0.002009952 nm. Among accepted candidates, the mean paired difference was -0.025613551 nm, but Q_0.90(δ_i|accepted) and Q_0.95(δ_i|accepted) were +0.133760589 and +0.170480315 nm, showing that accepted refinements still contained a harmful upper tail.
+
+This was not a trivial consequence of accepting more candidates. Accepting all 5,578 triggered candidates reversed the overall mean contrast to +0.008740 nm. Moreover, V2 overall mean contrasts were favorable under baseline drift (-0.002496 nm) and mixed contamination (-0.006674 nm) but slightly unfavorable under Gaussian (+0.000911 nm) and impulsive (+0.000220 nm) conditions.
+
+Fine-scale gate sensitivity was therefore evaluated on the development candidates only. The q75 threshold was selected as the predefined compromise between intervention count, improved/worsened composition, and overall mean error. All q50/q75/q90 development comparisons are shown in Figure 5 and Supplementary Figure S4; they are development evidence, not independent validation.
+
+3.4. Independent-Seed Validation Supported Fine-q75 as a Risk-Reduction Filter
+----------------------------------------------------------------------
+
+The predefined rule was next evaluated on newly seeded observations generated under the same design. Candidate generation was rerun, but the V2 formula and τ_fine were not changed.
+
+Table 4. Independent-seed validation of the predefined acceptance rules.
+
+| Rule | Accepted | Improved | Worsened | Improvement fraction among accepted (95% CI) | Overall mean δ vs E3 (nm; 95% bootstrap CI) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| V2 | 579 | 324 | 255 | 55.96% [51.89%, 59.95%] | -0.001930143 [-0.002860298, -0.001005167] |
+| Fine-q75 | 485 | 299 | 186 | 61.65% [57.25%, 65.87%] | -0.002335045 [-0.003246767, -0.001457948] |
+
+Fine-q75 reduced accepted interventions from 579 to 485 and harmful accepted cases from 255 to 186, while the improvement fraction among accepted candidates increased from 55.96% to 61.65%. The direct paired Fine-q75−V2 mean AE difference was -0.000404902 nm (95% bootstrap CI, -0.000715022 to -0.000103864 nm). This absolute difference is very small, so it is not used as the principal E4 performance claim. The principal interpretation is selective risk reduction.
+
+Scenario-level behavior supports that interpretation. Under baseline drift, Fine-q75 retained all 200 V2 candidates (137 improved, 63 worsened), with accepted-only mean δ_i = -0.021096 nm and an overall mean contrast of -0.002344047 nm (95% CI, -0.003407300 to -0.001292411). Under mixed contamination, it retained 168 candidates (118 improved, 50 worsened), with accepted-only mean δ_i = -0.087756 nm and an overall mean contrast of -0.008190553 nm (95% CI, -0.011300818 to -0.005155766).
+
+By contrast, Gaussian and impulsive contamination were not E4 benefit regimes. Fine-q75 retained 101 Gaussian candidates (42 improved, 59 worsened), and the overall mean contrast was +0.001058553 nm (95% CI, -0.000152628 to +0.002330582). Only 16 impulsive candidates survived the filter, of which 2 improved and 14 worsened; the overall mean contrast was +0.000135867 nm (95% CI, -0.000060192 to +0.000346735). Thus, Fine-q75 reduced unnecessary intervention but did not eliminate all harmful candidates.
+
+Taken together, the independent-seed evidence supports E4-Fine-q75 as an E3-anchored selective structured-residual refinement: E3 provides the principal protection against sparse impulsive contamination, whereas E4 is most useful when structured residuals remain under baseline drift or mixed contamination. When the acceptance criteria are not satisfied, the algorithm returns the E3 anchor.
+
+3.5. Computational Cost of the Reference Implementation
+----------------------------------------------------------------------
+
+Within the reference Python implementation, median per-execution wall-clock times in the selected-material/thickness run were approximately 53.26 ms for E0, 59.94 ms for E1, and 55.32 s for E3. The present implementation is therefore not a real-time inversion method. These wall-clock values are implementation- and hardware-dependent and are reported descriptively rather than as hardware-independent complexity constants.
+
+Once E3 had been obtained, incremental E4-HORP cost was much smaller. Among triggered observations in independent-seed validation, scenario-specific median E4 runtimes were approximately 0.045–0.062 s, with q95 values of approximately 0.087–0.191 s. The computational bottleneck is thus E3's robust profiling over the thickness grid and local minima, not the post-anchor E4 refinement.
+
+Figure 6 additionally shows that Fine-q75 filtered candidate structure differently across contamination mechanisms. It retained essentially all V2 candidates under baseline drift and a high fraction under mixed contamination, while filtering more strongly under Gaussian and especially impulsive contamination. The filter nevertheless remained imperfect, consistent with the accepted-outcome counts above.
+
+3.6. Limited Public Real-Spectrum Failure-Mode Diagnostic
+----------------------------------------------------------------------
+
+All 108 prespecified E0/E1/E3 executions on the 36 Sheffield acquisitions produced finite required outputs. Valid-completion counts were 32/36 for E0, 33/36 for E1, and 36/36 for E3. The seven invalid cases were 1000 nm upper-boundary hits—four for E0 and three for E1—all in the second sample.
+
+For the 476.3 nm sample, all methods had 18/18 valid completions. Median estimates were 482.44 nm (E0), 481.78 nm (E1), and 481.94 nm (E3), with IQRs of 4.75, 6.10, and 5.95 nm. Conditional mean AEs were much larger (57.1, 46.9, and 57.4 nm), indicating strong influence from a small number of large acquisition-level errors.
+
+For the 198.7 nm sample, valid-completion counts were 14/18, 15/18, and 18/18 for E0, E1, and E3, respectively. However, median valid estimates were 391.36, 392.98, and 391.53 nm, and conditional mean AEs were approximately 244.8, 269.6, and 283.2 nm. E3 therefore improved numerical completion without recovering the correct physical thickness basin.
+
+Because of the relative-versus-absolute reflectance mismatch and incomplete reference metadata described in Section 2.4.4, these data are interpreted only as a failure-mode diagnostic. They do not support a claim of traceable real-spectrum accuracy for E3 or E4-Fine-q75. Full acquisition-level visualization is provided in Supplementary Figure S1.
+
+======================================================================
+
+4. Discussion
+
+4.1. Different Residual Failures Require Different Corrective Mechanisms
+
+The principal finding is not that one estimator dominates all conditions, but that the ranking changes with the residual mechanism. Under impulsive contamination, E3 reduced the mean and upper-tail absolute errors relative to E0 across the mechanism benchmark and the selected-material/thickness study. This behavior is consistent with the role of a redescending M-estimator: isolated residuals beyond the Tukey cutoff no longer receive the quadratic leverage that they would under L2, while the gain and baseline nuisance parameters are re-estimated under the same robust objective rather than inherited from an outlier-sensitive least-squares fit [10]. The E1 comparison is important here because it shows that changing the residual score is not identical to changing the nuisance optimum. However, E3−E1 should not be read as a pure nuisance-refitting ablation, because E3 also uses a broader robust-profile local-minimum search. The evidence therefore supports the complete E3 robust-profile/multibasin procedure, not a component-wise causal attribution to IRLS alone.
+
+The baseline-drift results establish the complementary boundary. E3 was not favored under smooth structured drift, despite its clear advantage under impulsive contamination. This is scientifically useful negative evidence. A redescending loss is designed to reduce the influence of unusually large individual residuals; a smooth baseline perturbs many adjacent wavelengths coherently and can remain well inside the robust-loss transition region. More importantly, a smooth discrepancy can resemble part of the low-frequency spectral response produced by changing thickness or other optical parameters. General spectroscopy literature has long treated baseline estimation as a structured signal-separation problem rather than an outlier problem [11], and thin-film reflectance modeling shows that other forms of distributed model discrepancy, such as roughness, likewise require explicit physical or structural treatment [16]. The present results therefore reinforce a narrower interpretation of “robustness”: resistance to sparse residual contamination should not be equated with robustness to smooth baseline mismatch or forward-model error.
+
+4.2. Why the Multibasin E3 Formulation Matters
+
+The E3 formulation also addresses a different failure mechanism from residual contamination: separated thickness basins. The periodic phase structure of thin-film interference makes local optimization sensitive to the initial search region, and ambiguity in optical inversion has been documented in both reflectance/transmittance and ellipsometric settings [6–9]. Global or hybrid optimization has consequently been explored in thin-film parameter retrieval [7,8,13]. Our approach does not claim a global-optimality certificate. Instead, it makes the search structure explicit by retaining finite robust-profile local minima, applying deterministic gain starts, and refining candidate thickness basins under common bounds and failure accounting.
+
+This distinction matters because numerical convergence and physical identifiability are not interchangeable. The public Sheffield evaluation [3,29] illustrates the point directly. E3 achieved valid completion for all acquisitions of the thinner sample, whereas E0 and E1 produced several upper-boundary failures, yet the E3 estimates still concentrated near an incorrect thickness basin relative to the vendor reference. A better optimizer can therefore improve numerical completion without repairing a mismatch between the measured quantity and the assumed forward model or without adding the information needed to identify the physically correct basin. This observation is consistent with earlier work showing that additional angular information, independent reference measurements, or other constraints may be required to separate thickness from optical-property ambiguity [6,7,18]. The Sheffield result should thus be viewed as a diagnostic demonstration of this distinction rather than as a validation failure to be hidden.
+
+4.3. E4-HORP as Selective, Physically Protected Residual Refinement
+
+E4 was motivated specifically by the residual regime that remained problematic after E3. Its role is not to add an unrestricted high-order baseline. Instead, the E3 solution defines a local anchor; the residual-tree dictionary is first projected away from the current optical spectrum, the original Legendre nuisance space, and the first-order thickness-sensitivity direction, with partial suppression of the residualized second-order thickness direction. This construction is conceptually related to orthogonal signal-correction methods, in which nuisance variation is removed relative to a target-relevant subspace [12], but the protected direction here is local and physics-derived rather than a generic response vector.
+
+The acceptance results are equally important as the candidate model itself. On the development set, accepting every triggered E4 candidate worsened the overall mean error, demonstrating that additional fitting flexibility is not automatically beneficial. The predefined Fine-q75 rule subsequently reduced the number of harmful accepted candidates in the independent-seed validation while preserving the main benefit regimes under baseline drift and mixed contamination. The paired bootstrap interval for the direct Fine-q75−V2 mean difference lay below zero, but the absolute difference was extremely small. For that reason, the scientific value of Fine-q75 is better described as selective risk reduction than as a material improvement in average metrological accuracy. This framing also aligns with the observed Gaussian and impulsive results: the filter reduced unnecessary intervention, but it did not eliminate every harmful candidate, and E3 remained the principal protection against sparse impulsive contamination.
+
+This selective interpretation is important for judging the complexity of E4. The method contains a local residual tree, physical projections, regularization, a trust region, trigger diagnostics, and a fine-scale acceptance filter. The present evidence supports the composite procedure under the tested simulation conditions, not the independent necessity of every component. A fully factorial ablation of first-order protection, partial second-order protection, tree regularization, nuisance anchoring, and the acceptance diagnostics has not been performed. It would therefore be inappropriate to claim that each element is individually optimal or indispensable. The more defensible conclusion is that the complete E3-anchored and gated construction can reduce harmful interventions under the tested structured-residual conditions. Simpler alternatives such as higher-order polynomials, penalized splines, or other smooth baseline models remain relevant comparators for future component-focused studies.
+
+4.4. Development–Validation Separation and the Meaning of the Fine-q75 Evidence
+
+The independent-seed validation was designed to address a narrower reproducibility question: whether an acceptance threshold chosen during development retains similar behavior on newly regenerated observations when the generative distribution and code base are held fixed. The Fine-q75 threshold and V2 acceptance formula were fixed before the new-seed run, and E4 candidates were recomputed rather than replayed from the development table. This is stronger evidence than evaluating the threshold on the same candidate set used to choose it, but it is not external validation. The material systems, thicknesses, contamination distributions, and forward-model family were unchanged.
+
+The distinction should be preserved in interpreting the bootstrap intervals. The paired Fine-q75−V2 mean difference was below zero, but its magnitude was approximately four ten-thousandths of a nanometer. Such a small numerical difference is not the basis for an application claim. More informative are the changes in intervention composition: fewer candidates were accepted, fewer accepted candidates were harmful, and the improvement fraction among accepted candidates increased, while the baseline-drift and mixed regimes retained most of the useful interventions. Conversely, the remaining harmful impulsive candidates show that the gate is not a perfect classifier of whether E4 will improve thickness error. Future validation should therefore test the gate under distribution shifts that alter baseline shape, spectral resolution, wavelength calibration, optical-constant uncertainty, and instrument response, rather than relying only on additional random seeds.
+
+The sensitivity of near-zero endpoints in the selected-material/thickness study to bootstrap stratification leads to a similar statistical caution. Large impulsive and baseline-drift effects were stable to the resampling scheme, whereas some small tail contrasts moved around zero depending on whether the balanced material×thickness structure was enforced during resampling. This does not invalidate the primary pooled analysis; it shows that tiny directional effects are not robust enough to carry the scientific narrative. The main conclusions are consequently based on effects that are large relative to the resampling uncertainty and on repeated qualitative patterns across scenarios, materials, thicknesses, and endpoints.
+
+4.5. Computational Cost and Practical Positioning
+
+The reference implementation reveals a substantial computational asymmetry. E0 and E1 require only tens of milliseconds per execution, whereas E3 requires tens of seconds because the implementation repeatedly solves robust nuisance profiles across a coarse thickness grid, deterministic gain starts, and refined local minima. Once the E3 anchor is available, the incremental E4 refinement is comparatively small. The current framework should therefore not be described as a real-time metrology algorithm.
+
+This limitation is particularly relevant because recent reflectance-based thickness studies increasingly emphasize measurement throughput and initialization efficiency. Bai et al. reported sub-second per-point processing for a dedicated normal-incidence reflectance system using a genetic algorithm [4], while Tian and Li developed a physics-constrained predictor specifically to narrow the convergence region and accelerate broadband thickness fitting [9]. These systems address different measurement models and were evaluated on different hardware, so their runtimes are not directly comparable with ours. They nevertheless illustrate an important engineering direction: a failure-aware estimator intended for in-line deployment would need a substantially more efficient global or multibasin stage. Possible routes include adaptive spectral sampling, coarse-to-fine basin screening, surrogate-assisted objective evaluation, or parallelized robust profiling. Such acceleration should be studied without changing the failure-accounting rules that make the present comparison interpretable.
+
+4.6. Limitations and Future Validation
+
+Several limitations define the scope of the present conclusions. First, the main evidence is simulation-based. The selected material systems incorporate realistic optical constants and a transfer-matrix forward model, but the contamination processes remain controlled numerical constructions. Independent-seed validation does not substitute for calibrated experimental validation. Recent studies using independently characterized samples, traceable thickness standards, or independent ellipsometric references demonstrate the stronger standard required for claims of traceable or instrument-level accuracy [4,15,17]. Future work should therefore evaluate the fixed E3/E4 framework on raw reflectance spectra from films with independently characterized thickness, documented optical constants, and explicit instrument calibration.
+
+Second, the study considers a single homogeneous, isotropic, coherent film on a semi-infinite substrate. Surface roughness, graded refractive index, multilayer coupling, wavelength-dependent calibration errors, finite coherence, and imperfect knowledge of n(λ)+ik(λ) can produce forward-model discrepancy that is qualitatively different from the simulated gain, offset, baseline, and sparse-outlier terms. The nanoroughness literature shows that physically structured mismatch may require an enriched optical model rather than residual correction alone [16]. The E4 residual tree should not be interpreted as a substitute for missing optical physics.
+
+Third, the local identifiability diagnostics used by E4 protect thickness-sensitive directions near the E3 anchor; they do not establish global identifiability or exclude a distant competing basin. Classical studies of optical ambiguity and recent thin-film metrology approaches show that independent observables, additional angles, external calibration, or reference measurements can be necessary for unique parameter recovery [6,7,18]. A natural extension would combine failure-aware robust profiling with multiple incidence angles, polarization information, or calibrated transmittance where available.
+
+Fourth, the E4 hyperparameters and gate thresholds were fixed through a development procedure before validation but were not derived from an optimality theorem. Robust variable-projection methods continue to develop for separable nonlinear regression under non-Gaussian losses [19], and these formulations may offer alternative ways to couple physical and nuisance parameters while retaining robust estimation. Comparing E3/E4 against such methods, as well as against simpler structured-baseline extensions, would clarify which gains arise from robust nuisance profiling, which arise from basin search, and which require the physically protected residual layer.
+
+Within these limits, the results support a specific methodological conclusion. Thin-film spectral inversion should not treat all discrepancy as a single undifferentiated noise process. Sparse outliers, nuisance-parameter contamination, competing thickness basins, and smooth structured residuals produce different failure patterns and should be tested with mechanisms designed for those patterns. In the present framework, E3 is the primary robust multibasin estimator, E4 is a selective post-anchor refinement for structured residuals, and fallback is an explicit scientific decision rather than an optimization failure. This failure-mechanism-aware view is the main contribution of the study.
+
+5. Conclusions
+
+This study shows that thin-film thickness inversion should not treat sparse outliers, nuisance coupling, competing thickness basins, and smooth structured residuals as a single generic noise problem. Under a common transfer-matrix forward model and shared nuisance specification, E3 provided the clearest benefit under impulsive contamination, whereas its degradation under smooth baseline drift established an equally important boundary: redescending robustness to isolated residuals does not imply robustness to coherent wavelength-dependent mismatch.
+
+E4-HORP was therefore formulated as a selective post-anchor refinement rather than a replacement for E3. Its residual correction is protected against local thickness-sensitive directions, and candidate generation is separated from acceptance. Development-set sensitivity showed that unrestricted acceptance of triggered E4 candidates could be harmful. After the V2 and Fine-q75 criteria were fixed, independent-seed validation showed fewer accepted interventions and fewer error-increasing accepted cases while preserving the main baseline-drift and mixed-contamination benefit regimes. The small direct mean difference between Fine-q75 and V2 is not interpreted as a practically meaningful metrological gain; the contribution is improved intervention selectivity with explicit fallback to E3.
+
+The evidence remains primarily simulation-based, and the current reference implementation is not intended for real-time deployment. Additional residual flexibility also cannot substitute for missing optical physics or establish global identifiability. Future work should therefore prioritize independently characterized experimental samples, distribution-shift validation, component-focused E4 ablations, richer optical models or additional observables where needed, and acceleration of the E3 multibasin stage. Within these limits, the results support a failure-mechanism-aware framework in which E3 serves as the primary robust multibasin estimator and E4 is invoked only when structured-residual evidence justifies local refinement.
+
+Figure and Table Captions
+======================================================================
+
+Figure 1. Failure-aware thin-film thickness inversion workflow. A physics-based reflectance model and shared gain-plus-baseline nuisance formulation lead to the E0→E1→E3 estimator hierarchy. Sparse impulsive contamination is primarily addressed by E3 robust profiling, whereas persistent structured residual mismatch motivates the E3-anchored E4-HORP refinement. Predefined V2 and Fine-q75 acceptance rules determine whether the E4 candidate is retained or the algorithm falls back to E3.
+
+Figure 2. Representative failure mechanisms and inversion landscapes. (a) Deterministically reconstructed impulsive observation with injected outlier indices. (b) Representative baseline-drift residual and injected smooth baseline component. (c) Refined E3 local minima for a non-extreme impulsive observation, with E0/E1/E3 estimates shown for reference. (d) E3 local minima, E3 anchor, E4 trust-region bounds, and E4 candidate for a representative baseline-drift refinement. Representative observations were selected by distribution-based rules defined before figure construction and verified against stored spectrum hashes.
+
+Figure 3. Pooled AE contrasts across the selected materials and thicknesses. Circles show Δμ; squares and diamonds show ΔQ_0.90 and ΔQ_0.95. Horizontal bars are 95% observation-level percentile bootstrap intervals. The q90/q95 quantities are differences between method-specific AE quantiles, not quantiles of per-observation paired differences. Negative values indicate lower AE for E3.
+
+Figure 4. Material- and thickness-stratified mean AE contrasts in the selected-material/thickness simulation study. E3−E0 and E3−E1 Δμ are shown for each material system and true thickness. The Material-C/380-nm mixed E3−E0 value is annotated off-scale because it is strongly influenced by the retained E0 upper-boundary event.
+
+Figure 5. Separation of acceptance-rule development and independent-seed validation. Development panels summarize V1/V2 and fine-scale threshold replay on stored development candidate fields. Validation panels use newly seeded observations with the acceptance rule already fixed; candidate thicknesses were regenerated only in validation.
+
+Figure 6. Selective-refinement diagnostics. (a) Fine-scale normalized energy index among V2-eligible validation candidates and the predefined q75 threshold. (b) Scenario-specific retention after Fine-q75. (c) Improved/worsened fractions among accepted Fine-q75 candidates. (d) Incremental E4-HORP runtime among triggered validation observations.
+
+Table 1. Estimator definitions and scientific roles.
+
+Table 2. Contamination design for the selected-material/thickness simulation study.
+
+Table 3. Primary pooled mean (Δμ) and method-specific q90/q95 AE-quantile contrasts (ΔQ_p), with 95% observation-level percentile bootstrap intervals. Negative values favor the first-named method. The mixed E3−E0 pooled mean is strongly influenced by one retained E0 upper-boundary event in Material C at 380 nm.
+
+Table 4. Independent-seed comparison of V2 and Fine-q75, including accepted/improved/worsened counts, Wilson intervals for the improvement fraction among accepted candidates, and paired-bootstrap intervals for overall mean AE contrasts relative to E3.
+
+
+Supplementary Materials
+
+The Supplementary Information contains Supplementary Methods S1–S5, Supplementary Results, Figures S1–S4, Tables S1–S11, and reproducibility/provenance information supporting the numerical implementation and reported sensitivity analyses.
+
+Author Contributions
+
+Conceptualization, G.W. and H.Z.; methodology, G.W. and H.Z.; software, G.W.; validation, Y.H., W.M., Z.Z. and L.Y.; formal analysis, G.W., Y.H., Z.Z. and L.Y.; investigation, G.W., Y.H. and W.M.; data curation, G.W., Z.Z. and L.Y.; visualization, G.W., Y.H. and W.M.; writing—original draft preparation, G.W.; writing—review and editing, G.W., Y.H., W.M., Z.Z., L.Y. and H.Z.; supervision, H.Z.; project administration, H.Z. All authors have read and agreed to the published version of the manuscript.
+
+Funding
+
+This research received no external funding.
+
+Institutional Review Board Statement
+
+Not applicable. The study used synthetic data and publicly available non-human optical spectra.
+
+Informed Consent Statement
+
+Not applicable.
+
+Data Availability Statement
+
+The simulation settings, statistical summary tables, figure source data, supplementary analyses, and reproducibility metadata supporting this study are provided in the Supplementary Materials. A release-candidate reproducibility repository containing estimator source code, fixed configurations, processed result tables, analysis scripts, figure/table source data, and SHA-256 provenance has been prepared; the public archival repository DOI/URL will be inserted after deposition and verification. The external optical-property dataset used for the SiO2-buffer/soda-lime-glass system is publicly available from Zenodo at https://doi.org/10.5281/zenodo.15055400 [25]. The public Sheffield real-spectrum data used for the limited failure-mode diagnostic are available from the University of Sheffield Research Data Repository at https://doi.org/10.15131/shef.data.23285603 (versioned record: https://doi.org/10.15131/shef.data.23285603.v1) and are associated with Sánchez-Arriaga et al. [3,29].
+
+Acknowledgments
+
+During the preparation of this manuscript, the authors used OpenAI ChatGPT and OpenAI Codex (model versions varied across sessions and were not systematically recorded) for manuscript drafting, structural revision, literature organization, and internal consistency checking. The authors reviewed and edited the output and take full responsibility for the content of this publication.
+
+Conflicts of Interest
+
+The authors declare no conflicts of interest.
+
+References
+
+1. Norgia, M.; Pesatori, A. Interferometric Instrument for Thickness Measurement on Blown Films. Photonics 2021, 8, 245. https://doi.org/10.3390/photonics8070245.
+2. Usman, A.; Bhatranand, A.; Jiraraksopakun, Y.; Kaewon, R.; Pawong, C. Real-Time Double-Layer Thin Film Thickness Measurements Using Modified Sagnac Interferometer with Polarization Phase Shifting Approach. Photonics 2021, 8, 529. https://doi.org/10.3390/photonics8120529.
+3. Sánchez-Arriaga, N.E.; Tiwari, D.; Hutabarat, W.; Leyland, A.; Tiwari, A. A Spectroscopic Reflectance-Based Low-Cost Thickness Measurement System for Thin Films: Development and Testing. Sensors 2023, 23, 5326. https://doi.org/10.3390/s23115326.
+4. Bai, J.; Chen, H.; Chen, J.; Yang, H.; Li, X.; Shi, Y.; Song, J. Normal Incident Optical Reflectance Spectroscopy for Thin-Film Thickness Measurement with Genetic Algorithm. Measurement 2025, 256, 118511. https://doi.org/10.1016/j.measurement.2025.118511.
+5. Ventura, S.D.; Birgin, E.G.; Martínez, J.M.; Chambouleyron, I. Optimization Techniques for the Estimation of the Thickness and the Optical Parameters of Thin Films Using Reflectance Data. J. Appl. Phys. 2005, 97, 043512. https://doi.org/10.1063/1.1849431.
+6. Lamprecht, K.; Papousek, W.; Leising, G. Problem of Ambiguity in the Determination of Optical Constants of Thin Absorbing Films from Spectroscopic Reflectance and Transmittance Measurements. Appl. Opt. 1997, 36, 6364–6371. https://doi.org/10.1364/AO.36.006364.
+7. Gao, L.; Lemarchand, F.; Lequime, M. Exploitation of Multiple Incidences Spectrometric Measurements for Thin Film Reverse Engineering. Opt. Express 2012, 20, 15734–15751. https://doi.org/10.1364/OE.20.015734.
+8. Dorywalski, K.; Schmidt-Grund, R.; Grundmann, M. Hybrid GA-Gradient Method for Thin Films Ellipsometric Data Evaluation. J. Comput. Sci. 2020, 47, 101201. https://doi.org/10.1016/j.jocs.2020.101201.
+9. Tian, Y.; Li, Z. Thin-Film Thickness Measurement Using Physics-Constrained Adaptive Spectral Sampling. Meas. Sci. Technol. 2026, 37, 205203. https://doi.org/10.1088/1361-6501/ae693b.
+10. Holland, P.W.; Welsch, R.E. Robust Regression Using Iteratively Reweighted Least-Squares. Commun. Stat. Theory Methods 1977, 6, 813–827. https://doi.org/10.1080/03610927708827533.
+11. Baek, S.-J.; Park, A.; Ahn, Y.-J.; Choo, J. Baseline Correction Using Asymmetrically Reweighted Penalized Least Squares Smoothing. Analyst 2015, 140, 250–257. https://doi.org/10.1039/C4AN01061B.
+12. Westerhuis, J.A.; de Jong, S.; Smilde, A.K. Direct Orthogonal Signal Correction. Chemom. Intell. Lab. Syst. 2001, 56, 13–25. https://doi.org/10.1016/S0169-7439(01)00102-2.
+13. Dutta, R.; Tian, S.I.P.; Liu, Z.; Lakshminarayanan, M.; Venkataraj, S.; Cheng, Y.; Bash, D.; Chellappan, V.; Buonassisi, T.; Jayavelu, S. Extracting Film Thickness and Optical Constants from Spectrophotometric Data by Evolutionary Optimization. PLoS ONE 2022, 17, e0276555. https://doi.org/10.1371/journal.pone.0276555.
+14. Guo, X.; Lu, J.; Li, Y.; Li, J.; Huang, W. Inverse Design for Coating Parameters in Nano-Film Growth Based on Deep Learning Neural Network and Particle Swarm Optimization Algorithm. Photonics 2022, 9, 513. https://doi.org/10.3390/photonics9080513.
+15. Lee, J.; Jin, J. A Novel Method to Design and Evaluate Artificial Neural Network for Thin Film Thickness Measurement Traceable to the Length Standard. Sci. Rep. 2022, 12, 2212. https://doi.org/10.1038/s41598-022-06247-y.
+16. Lampadariou, E.; Kaklamanis, K.; Goustouridis, D.; Raptis, I.; Lidorikis, E. Nonlocal Effective Medium (NLEM) for Quantitative Modelling of Nanoroughness in Spectroscopic Reflectance. Photonics 2022, 9, 499. https://doi.org/10.3390/photonics9070499.
+17. Wei, L.; Luo, H.; Li, Z.; Qu, D.; Zhou, Z.; Jin, W.; Hu, M.; Xiong, W. Phase-Modulated Ellipsometry Based on Hybrid Algorithm for Non-Calibration Film Thickness Measurement. Photonics 2025, 12, 1217. https://doi.org/10.3390/photonics12121217.
+18. Nestler, P.; Helm, C.A. Determination of Refractive Index and Layer Thickness of nm-Thin Films via Ellipsometry. Opt. Express 2017, 25, 27077–27085. https://doi.org/10.1364/OE.25.027077.
+19. Chen, G.-Y.; Su, X.-X.; Gan, M.; Guo, W.; Chen, C.L.P. Robust Variable Projection Algorithm for the Identification of Separable Nonlinear Models. IEEE Trans. Autom. Control 2024, 69, 6293–6300. https://doi.org/10.1109/TAC.2024.3376315.
+20. Malitson, I.H. Interspecimen Comparison of the Refractive Index of Fused Silica. J. Opt. Soc. Am. 1965, 55, 1205–1209. https://doi.org/10.1364/JOSA.55.001205.
+21. SCHOTT AG. Optical Glass Data Sheets: SCHOTT N-BK7®, Optical Glass Collection, May 2019. Available online: https://www.schott.com/en-gb/products/optical-glass/ (accessed on 8 August 2026).
+22. Palik, E.D., Ed. Handbook of Optical Constants of Solids; Academic Press: Orlando, FL, USA, 1985.
+23. KLA Corporation. Refractive Index of Si, Silicon. Refractive Index Database. Available online: https://www.filmetrics.com/products/instruments/refractive-index-database/si (accessed on 8 August 2026).
+24. Aulika, I.; Paulsone, P.; Laizāne, E.; Butikova, J.; Vembris, A. Spatial Mapping of Optical Constants and Thickness Variations in ITO Films and SiO2 Buffer Layers. Opt. Mater. X 2025, 26, 100408. https://doi.org/10.1016/j.omx.2025.100408.
+25. Aulika, I.; Paulsone, P.; Butikova, J.; Vembris, A.; Institute of Solid State Physics, University of Latvia. ITO, Soda Lime Float Glass and SiO2 Buffer Layer Optical Properties; Zenodo, 2025. https://doi.org/10.5281/zenodo.15055400.
+26. Golub, G.H.; Pereyra, V. The Differentiation of Pseudo-Inverses and Nonlinear Least Squares Problems Whose Variables Separate. SIAM J. Numer. Anal. 1973, 10, 413–432. https://doi.org/10.1137/0710036.
+27. O’Leary, D.P.; Rust, B.W. Variable Projection for Nonlinear Least Squares Problems. Comput. Optim. Appl. 2013, 54, 579–593. https://doi.org/10.1007/s10589-012-9492-9.
+28. Beaton, A.E.; Tukey, J.W. The Fitting of Power Series, Meaning Polynomials, Illustrated on Band-Spectroscopic Data. Technometrics 1974, 16, 147–185. https://doi.org/10.1080/00401706.1974.10489171.
+29. Sánchez-Arriaga, N.E. Dataset: A Spectroscopic Reflectance-Based Low-Cost Thickness Measurement System for Thin Films: Development and Testing; University of Sheffield Research Data Repository, 2023. https://doi.org/10.15131/shef.data.23285603.

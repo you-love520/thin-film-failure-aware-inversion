@@ -1,0 +1,26 @@
+PASS Table S5 contains 108 material x thickness x scenario x method rows
+PASS Table S5 represents 21,600 estimator records
+PASS Exactly one non-ok selected-material estimator record is retained
+PASS Exactly one selected-material boundary event is retained
+PASS The retained non-ok record is Material C / 380 nm / mixed / E0
+PASS The retained boundary-event AE is ~319.99998 nm
+PASS Development V2 accepted count = 565
+PASS Development Fine-q75 accepted count = 472
+PASS Development-v1 initial gate accepted count = 78
+PASS Development-v1 fallback-reason table accounts for all 7,200 observations
+PASS Independent validation V2 counts = 579 accepted / 324 improved / 255 worsened
+PASS Independent validation Fine-q75 counts = 485 accepted / 299 improved / 186 worsened
+PASS V2 mean AE contrast matches manuscript
+PASS Fine-q75 mean AE contrast matches manuscript
+PASS Operational validation accounting totals 7,200 observations
+PASS Independent validation triggered count = 5,654
+PASS Operational V2 eligible count = 579
+PASS Operational Fine-q75 eligible count = 485
+PASS Final E3 fallback count = 6,715
+PASS Primary selected-material contrast table contains 24 endpoints
+PASS Impulsive E3-E0 mean contrast = -1.249558 nm
+PASS Impulsive E3-E0 q95 contrast = -2.040323 nm
+PASS Baseline-drift E3-E0 mean contrast = +0.161383 nm
+
+RELEASE VERIFICATION PASS
+No estimator was rerun.

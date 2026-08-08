@@ -1,0 +1,19 @@
+{
+  "scientific_freeze": "v1.6 scientific core + v1.7 formatting source + supplement v0.5",
+  "public_repo_created": false,
+  "reason": "Authenticated GitHub connection has no accessible repositories and the available connector does not expose repository creation.",
+  "sheffield_article_doi": "10.3390/s23115326",
+  "sheffield_dataset_doi": "10.15131/shef.data.23285603",
+  "sheffield_versioned_doi": "10.15131/shef.data.23285603.v1",
+  "license_selected": false,
+  "repository_url_assigned": false,
+  "portable_verification_script": "analysis/verify_release.py",
+  "portable_verification_passed": true,
+  "github_authenticated_user": "you-love520",
+  "github_accessible_repositories": 0,
+  "public_release_steps": "PUBLIC_RELEASE_STEPS.md",
+  "portable_verification_result": "RELEASE VERIFICATION PASS; no estimator rerun",
+  "release_candidate_version": "V3-clean",
+  "compiled_python_cache_removed": true,
+  "manifest_verified_after_cleanup": true
+}
